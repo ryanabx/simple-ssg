@@ -7,7 +7,7 @@ This is the simplest implementation of a Djot static site generator that I could
 ```shell
 cargo install djot-ssg
 
-djot-ssg -d <TARGET_DIRECTORY> -o <OUTPUT_DIRECTORY>
+djot-ssg <TARGET_DIRECTORY> -o [OUTPUT_DIRECTORY]
 ```
 
 ## Support Goals
