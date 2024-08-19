@@ -1,0 +1,11 @@
+[package]
+name = "djot-ssg"
+authors = ["Ryan Brue <ryanbrue.dev@gmail.com>"]
+repository = "https://github.com/ryanabx/djot-ssg"
+license = "MIT"
+readme = "README.dj"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.5.16", features = ["derive"] }
