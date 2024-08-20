@@ -1,0 +1,35 @@
+<section id="Djot-Static-Site-Generator">
+<h1>Djot Static Site Generator</h1>
+<p><a href="./command_reference">Command Reference</a></p>
+<section id="A-simple-static-site-generator-for-Djot">
+<h2>A simple static site generator for Djot!</h2>
+<section id="What-is-Djot">
+<h3>What is Djot?</h3>
+<p><a href="https://github.com/jgm/djot">Djot</a> is a light markup language created by <a href="https://github.com/jgm">John MacFarlane</a>, who was consequential in developing <a href="https://commonmark.org/">CommonMark</a>, which is a standardized variant of Markdown.</p>
+</section>
+<section id="Why-Djot-and-not-Markdown">
+<h3>Why Djot and not Markdown?</h3>
+<p>I decided to make this simple generator because the tooling for Djot is actually quite nice. The reference parser is written in TypeScript, but there is a parser written in rust which I’m using for this project called <a href="https://github.com/hellux/jotdown">Jotdown</a>. One of Djot’s goals is to have single-pass parsing, and the rules are much simpler than Markdown, leaving less up to interpretation. This makes writing a parser for Djot very simple compared to having to interpret edge cases in Markdown.</p>
+<p>The syntax of Djot is very similar to Markdown, but it removes some of the inconsistencies that couldn’t be removed in CommonMark. John MacFarlane has a great blog post with some of the ideas that made it into Djot, see <a href="https://johnmacfarlane.net/beyond-markdown.html">https://johnmacfarlane.net/beyond-markdown.html</a>.</p>
+</section>
+<section id="Why-make-a-static-site-generator">
+<h3>Why make a static site generator?</h3>
+<p>Honestly, I was just wanting a bit more tooling for Djot. I created a <a href="https://github.com/ryanabx/djot-vscode">Visual studio code plugin</a>, and decided I wanted to have more fun with Djot. Since I build projects in rust, I’m thankful that Jotdown exists to take care of the parsing part for me, all I had to do was handle the conversions.</p>
+<p>The scope of this generator is pretty simple, no table of contents, no sidebar, just raw Djot parsing. There are some nice warnings that the generator will let you know about though!</p>
+<ul>
+<li>
+A warning if <code>index.dj || index.djot</code> doesn’t exist. Most sites will use <code>index.html</code> as the entry point to a site
+</li>
+<li>
+A warning if a local link is broken
+</li>
+<li>
+A warning if a path in the directory walk is not relative to the target directory (this should pretty much never happen, but it’s there just in case)
+</li>
+</ul>
+<p>You can also use the <code>--no-warn</code> argument to turn warnings into errors, if you value having an absolutely “correct” website generated!</p>
+<p>See more from me at <a href="https://github.com/ryanabx">https://github.com/ryanabx</a></p>
+<p><img alt="ryanabx profile photo" src="https://avatars.githubusercontent.com/u/56272643?v=4"></p>
+</section>
+</section>
+</section>

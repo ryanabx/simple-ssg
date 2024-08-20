@@ -1,0 +1,42 @@
+<section id="Djot-command-reference">
+<h1>Djot command reference</h1>
+<p><a href="./index.html">Back to main page</a></p>
+<section id="Installation">
+<h2>Installation</h2>
+<pre><code class="language-shell">cargo install djot-ssg
+</code></pre>
+</section>
+<section id="Building-Locally">
+<h2>Building Locally</h2>
+<pre><code class="language-shell">git clone https://github.com/ryanabx/djot-ssg
+cd djot-ssg
+cargo build --release
+</code></pre>
+</section>
+<section id="Usage">
+<h2>Usage</h2>
+<pre><code class="language-shell">djot-ssg &lt;PATH_TO_TARGET&gt;
+</code></pre>
+<section id="Options">
+<h3>Options</h3>
+<ul>
+<li>
+<code>-o [OUTPUT_DIR]</code>: Override the output directory, by default it is <code>{PWD}/output</code>
+</li>
+<li>
+<code>--clean</code>: Clean the output directory before generating the site
+</li>
+<li>
+<code>--no-warn</code>: Any warnings will be treated as errors
+</li>
+</ul>
+</section>
+</section>
+<section id="Debugging">
+<h2>Debugging</h2>
+<blockquote>
+<p><strong>TIP:</strong> Use the <code>RUST_LOG</code> environment variable to change the log level of the application: <br>
+i.e. <code>RUST_LOG=trace djot-ssg ...</code></p>
+</blockquote>
+</section>
+</section>
