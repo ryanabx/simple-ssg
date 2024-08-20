@@ -4,7 +4,7 @@ use std::{
     env,
     path::{Path, PathBuf},
 };
-use utils::{warn_or_error, warn_or_panic};
+use utils::warn_or_error;
 use walkdir::WalkDir;
 
 use clap::Parser;
@@ -97,7 +97,7 @@ fn generate_site(target_path: &Path, output_path: &Path, no_warn: bool) -> anyho
                         let djot_input = std::fs::read_to_string(direntry.path())?;
                         let html =
                             process_djot(&djot_input, direntry.path().parent().unwrap(), no_warn);
-                        std::fs::write(&result_path, &html.as_bytes())?;
+                        std::fs::write(&result_path, &html?.as_bytes())?;
                     }
                     _ => {
                         std::fs::copy(direntry.path(), &new_path)?;
@@ -112,57 +112,58 @@ fn generate_site(target_path: &Path, output_path: &Path, no_warn: bool) -> anyho
     Ok(())
 }
 
-fn process_djot(djot_input: &str, file_parent_dir: &Path, no_warn: bool) -> String {
-    let events = jotdown::Parser::new(&djot_input).map(|event| match event {
-        Event::Start(Container::Link(s, link_type), a) => {
-            let inner = s.to_string();
-            let referenced_path = file_parent_dir.join(s.to_string());
-            let new_path = Path::new(&inner).with_extension("html");
-            if referenced_path.exists() {
-                Event::Start(
-                    Container::Link(
-                        std::borrow::Cow::Owned(new_path.to_string_lossy().to_string()),
-                        link_type,
-                    ),
-                    a,
-                )
-            } else {
-                warn_or_panic(SsgError::LinkError(referenced_path.clone()), no_warn);
-                Event::Start(Container::Link(s, link_type), a)
+fn process_djot(djot_input: &str, file_parent_dir: &Path, no_warn: bool) -> anyhow::Result<String> {
+    let events = jotdown::Parser::new(&djot_input)
+        .map(|event| -> anyhow::Result<Event> {
+            match event {
+                Event::Start(Container::Link(s, link_type), a) => {
+                    let inner = s.to_string();
+                    let referenced_path = file_parent_dir.join(s.to_string());
+                    if referenced_path
+                        .extension()
+                        .is_some_and(|ext| ext == "dj" || ext == "djot")
+                    {
+                        let new_path = Path::new(&inner).with_extension("html");
+                        if referenced_path.exists() {
+                            Ok(Event::Start(
+                                Container::Link(
+                                    std::borrow::Cow::Owned(new_path.to_string_lossy().to_string()),
+                                    link_type,
+                                ),
+                                a,
+                            ))
+                        } else {
+                            warn_or_error(SsgError::LinkError(referenced_path), no_warn)?;
+                            Ok(Event::Start(Container::Link(s, link_type), a))
+                        }
+                    } else {
+                        Ok(Event::Start(Container::Link(s, link_type), a))
+                    }
+                }
+                Event::End(Container::Link(s, link_type)) => {
+                    let inner = s.to_string();
+                    let referenced_path = file_parent_dir.join(s.to_string());
+                    if referenced_path
+                        .extension()
+                        .is_some_and(|ext| ext == "dj" || ext == "djot")
+                    {
+                        let new_path = Path::new(&inner).with_extension("html");
+                        if referenced_path.exists() {
+                            Ok(Event::End(Container::Link(
+                                std::borrow::Cow::Owned(new_path.to_string_lossy().to_string()),
+                                link_type,
+                            )))
+                        } else {
+                            Ok(Event::End(Container::Link(s, link_type)))
+                        }
+                    } else {
+                        Ok(Event::End(Container::Link(s, link_type)))
+                    }
+                }
+                _ => Ok(event),
             }
-        }
-        Event::End(Container::Link(s, link_type)) => {
-            let inner = s.to_string();
-            let referenced_path = file_parent_dir.join(s.to_string());
-            let new_path = Path::new(&inner).with_extension("html");
-            if referenced_path.exists() {
-                Event::End(Container::Link(
-                    std::borrow::Cow::Owned(new_path.to_string_lossy().to_string()),
-                    link_type,
-                ))
-            } else {
-                Event::End(Container::Link(s, link_type))
-            }
-        }
-        _ => event,
-    });
-    for event in events.clone() {
-        // log::trace!("EVENT: {:?}", event);
-        match event {
-            jotdown::Event::Start(jotdown::Container::Link(s, link_type), a) => {
-                log::debug!(
-                    "Link found! {} :: Type: {:?} :: Container attributes: {:?}",
-                    s,
-                    link_type,
-                    a
-                );
-            }
-            _ => {}
-        }
-    }
-    let mut html = jotdown::html::render_to_string(events);
-    // For now, just replace all .dj, .djot with .html
-    html = html.replace(".dj", ".html");
-    html = html.replace(".djot", ".html");
-    html
+        })
+        .collect::<Result<Vec<Event>, _>>()?;
+    let html = jotdown::html::render_to_string(events.iter().cloned());
+    Ok(html)
 }

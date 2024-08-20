@@ -23,11 +23,3 @@ pub fn warn_or_error(error: crate::errors::SsgError, no_warn: bool) -> anyhow::R
         Ok(())
     }
 }
-
-pub fn warn_or_panic(error: crate::errors::SsgError, no_warn: bool) {
-    if no_warn {
-        panic!("{}", error.to_string())
-    } else {
-        log::warn!("{}", error);
-    }
-}
