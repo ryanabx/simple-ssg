@@ -1,6 +1,7 @@
 name: Deploy Static Site
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master  # Run the action on pushes to the main branch
