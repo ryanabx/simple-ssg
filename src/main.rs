@@ -6,6 +6,8 @@ use walkdir::WalkDir;
 
 use clap::Parser;
 
+#[cfg(test)]
+mod tests;
 mod utils;
 
 /// Djot static site generator
@@ -29,6 +31,10 @@ fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
     log::trace!("Begin djot-ssg::main()");
     let args = ConsoleArgs::parse();
+    run_program(args)
+}
+
+fn run_program(args: ConsoleArgs) -> anyhow::Result<()> {
     let output_path = args
         .output_path
         .unwrap_or(env::current_dir()?.join("output"));
@@ -102,10 +108,4 @@ fn generate_site(target_path: &Path, output_path: &Path, no_warn: bool) -> anyho
         }
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod test {
-    #[test]
-    fn generate_sample_site() {}
 }
