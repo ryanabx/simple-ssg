@@ -6,6 +6,7 @@ license = "MIT"
 readme = "README.dj"
 version = "1.0.0"
 edition = "2021"
+description = "Plain and simple static site generator for Djot markup"
 
 [dependencies]
 anyhow = "1.0.86"
