@@ -1,11 +1,15 @@
+use errors::SsgError;
+use jotdown::{Container, Event};
 use std::{
     env,
     path::{Path, PathBuf},
 };
+use utils::{warn_or_error, warn_or_panic};
 use walkdir::WalkDir;
 
 use clap::Parser;
 
+mod errors;
 #[cfg(test)]
 mod tests;
 mod utils;
@@ -44,8 +48,8 @@ fn run_program(args: ConsoleArgs) -> anyhow::Result<()> {
             "Clean argument specified, cleaning output path {:?}...",
             &output_path
         );
-        if let Err(e) = std::fs::remove_dir_all(&output_path) {
-            log::warn!("Cleanup failed: {}", e);
+        if let Err(_) = std::fs::remove_dir_all(&output_path) {
+            log::trace!("Nothing to clean!");
         } else {
             log::trace!("Clean successful!");
         }
@@ -61,7 +65,7 @@ fn generate_site(target_path: &Path, output_path: &Path, no_warn: bool) -> anyho
         output_path
     );
     if !utils::check_has_index(target_path) {
-        warn_or_error!(no_warn, "index.{{dj|djot}} not found! consider creating one in the base target directory as the default page.");
+        warn_or_error(SsgError::IndexPageNotFound, no_warn)?;
     }
     for entry in WalkDir::new(target_path) {
         match entry {
@@ -74,12 +78,10 @@ fn generate_site(target_path: &Path, output_path: &Path, no_warn: bool) -> anyho
                 let new_path = match utils::get_relative_path(direntry.path(), &target_path) {
                     Some(relative) => output_path.join(relative),
                     None => {
-                        warn_or_error!(
+                        warn_or_error(
+                            SsgError::PathNotRelative(direntry.path().to_path_buf()),
                             no_warn,
-                            "Path {:?} is not relative to {:?}, skipping...",
-                            direntry.path(),
-                            &target_path
-                        );
+                        )?;
                         continue;
                     }
                 };
@@ -93,8 +95,8 @@ fn generate_site(target_path: &Path, output_path: &Path, no_warn: bool) -> anyho
                             &result_path
                         );
                         let djot_input = std::fs::read_to_string(direntry.path())?;
-                        let events = jotdown::Parser::new(&djot_input);
-                        let html = jotdown::html::render_to_string(events);
+                        let html =
+                            process_djot(&djot_input, direntry.path().parent().unwrap(), no_warn);
                         std::fs::write(&result_path, &html.as_bytes())?;
                     }
                     _ => {
@@ -103,9 +105,64 @@ fn generate_site(target_path: &Path, output_path: &Path, no_warn: bool) -> anyho
                 }
             }
             Err(e) => {
-                warn_or_error!(no_warn, "An entry returned error {}", e);
+                warn_or_error(SsgError::DirEntryError(e), no_warn)?;
             }
         }
     }
     Ok(())
+}
+
+fn process_djot(djot_input: &str, file_parent_dir: &Path, no_warn: bool) -> String {
+    let events = jotdown::Parser::new(&djot_input).map(|event| match event {
+        Event::Start(Container::Link(s, link_type), a) => {
+            let inner = s.to_string();
+            let referenced_path = file_parent_dir.join(s.to_string());
+            let new_path = Path::new(&inner).with_extension("html");
+            if referenced_path.exists() {
+                Event::Start(
+                    Container::Link(
+                        std::borrow::Cow::Owned(new_path.to_string_lossy().to_string()),
+                        link_type,
+                    ),
+                    a,
+                )
+            } else {
+                warn_or_panic(SsgError::LinkError(referenced_path.clone()), no_warn);
+                Event::Start(Container::Link(s, link_type), a)
+            }
+        }
+        Event::End(Container::Link(s, link_type)) => {
+            let inner = s.to_string();
+            let referenced_path = file_parent_dir.join(s.to_string());
+            let new_path = Path::new(&inner).with_extension("html");
+            if referenced_path.exists() {
+                Event::End(Container::Link(
+                    std::borrow::Cow::Owned(new_path.to_string_lossy().to_string()),
+                    link_type,
+                ))
+            } else {
+                Event::End(Container::Link(s, link_type))
+            }
+        }
+        _ => event,
+    });
+    for event in events.clone() {
+        // log::trace!("EVENT: {:?}", event);
+        match event {
+            jotdown::Event::Start(jotdown::Container::Link(s, link_type), a) => {
+                log::debug!(
+                    "Link found! {} :: Type: {:?} :: Container attributes: {:?}",
+                    s,
+                    link_type,
+                    a
+                );
+            }
+            _ => {}
+        }
+    }
+    let mut html = jotdown::html::render_to_string(events);
+    // For now, just replace all .dj, .djot with .html
+    html = html.replace(".dj", ".html");
+    html = html.replace(".djot", ".html");
+    html
 }

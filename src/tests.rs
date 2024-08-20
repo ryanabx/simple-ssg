@@ -7,6 +7,11 @@ use std::{
 use crate::ConsoleArgs;
 
 #[test]
+fn site_broken_link() -> anyhow::Result<()> {
+    todo!()
+}
+
+#[test]
 fn site_warn_without_index() -> anyhow::Result<()> {
     let temp_dir = temp_dir();
     // Perform test with catch
