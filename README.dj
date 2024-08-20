@@ -21,7 +21,3 @@ This static site generator aims to support:
 This project is not going to support these things:
 
 - [ ] Themes (Could be reconsidered)
-
-## Next step
-
-- If a link is found (.dj, or .djot), check if the file exists. If it does, change to .html, if not, warn.

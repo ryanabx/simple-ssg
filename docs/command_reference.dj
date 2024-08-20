@@ -1,0 +1,34 @@
+# Djot command reference
+
+[Back to main page](./index.dj)
+
+## Installation
+
+```shell
+cargo install djot-ssg
+```
+
+## Building Locally
+
+```shell
+git clone https://github.com/ryanabx/djot-ssg
+cd djot-ssg
+cargo build --release
+```
+
+## Usage
+
+```shell
+djot-ssg <PATH_TO_TARGET>
+```
+
+### Options
+
+- `-o [OUTPUT_DIR]`: Override the output directory, by default it is `{PWD}/output`
+- `--clean`: Clean the output directory before generating the site
+- `--no-warn`: Any warnings will be treated as errors
+
+## Debugging
+
+> *TIP:* Use the `RUST_LOG` environment variable to change the log level of the application: \
+> i.e. `RUST_LOG=trace djot-ssg ...`

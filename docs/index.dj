@@ -1,0 +1,31 @@
+# Djot Static Site Generator
+
+[Command Reference](./command_reference)
+
+## A simple static site generator for Djot!
+
+### What is Djot?
+
+[Djot](https://github.com/jgm/djot) is a light markup language created by [John MacFarlane](https://github.com/jgm), who was consequential in developing [CommonMark](https://commonmark.org/), which is a standardized variant of Markdown.
+
+### Why Djot and not Markdown?
+
+I decided to make this simple generator because the tooling for Djot is actually quite nice. The reference parser is written in TypeScript, but there is a parser written in rust which I'm using for this project called [Jotdown](https://github.com/hellux/jotdown). One of Djot's goals is to have single-pass parsing, and the rules are much simpler than Markdown, leaving less up to interpretation. This makes writing a parser for Djot very simple compared to having to interpret edge cases in Markdown.
+
+The syntax of Djot is very similar to Markdown, but it removes some of the inconsistencies that couldn't be removed in CommonMark. John MacFarlane has a great blog post with some of the ideas that made it into Djot, see <https://johnmacfarlane.net/beyond-markdown.html>.
+
+### Why make a static site generator?
+
+Honestly, I was just wanting a bit more tooling for Djot. I created a [Visual studio code plugin](https://github.com/ryanabx/djot-vscode), and decided I wanted to have more fun with Djot. Since I build projects in rust, I'm thankful that Jotdown exists to take care of the parsing part for me, all I had to do was handle the conversions.
+
+The scope of this generator is pretty simple, no table of contents, no sidebar, just raw Djot parsing. There are some nice warnings that the generator will let you know about though!
+
+- A warning if `index.dj || index.djot` doesn't exist. Most sites will use `index.html` as the entry point to a site
+- A warning if a local link is broken
+- A warning if a path in the directory walk is not relative to the target directory (this should pretty much never happen, but it's there just in case)
+
+You can also use the `--no-warn` argument to turn warnings into errors, if you value having an absolutely "correct" website generated!
+
+See more from me at <https://github.com/ryanabx>
+
+![ryanabx profile photo](https://avatars.githubusercontent.com/u/56272643?v=4)
