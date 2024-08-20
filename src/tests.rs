@@ -5,38 +5,50 @@ use std::{
     panic,
 };
 
+use rand::{distributions::Alphanumeric, Rng};
+
 use crate::{errors::SsgError, ConsoleArgs};
 
 #[test]
 fn site_with_links() -> anyhow::Result<()> {
-    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("trace")).try_init();
-    let temp_dir = temp_dir();
+    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("trace"))
+        .try_init();
+    let temp_dir = temp_dir().join(temp_dir_name());
     let res = panic::catch_unwind(|| {
         {
             (|| {
-                create_dir_all(&temp_dir.join("nested2"))?;
-                create_dir_all(&temp_dir.join("nested3"))?;
+                log::trace!("Creating nested directories");
+                create_dir_all(&temp_dir.join("target/nested2"))?;
+                create_dir_all(&temp_dir.join("target/nested3"))?;
+                log::trace!("Done");
                 let mut djot_file_1 = File::create(&temp_dir.join("target/index.dj"))?;
                 write!(
-            djot_file_1,
-            "# Hey everyone!\n\nThis is an example djot file!\n\n> Hey what's up. Link:\n\n[HIHIDHI](nested2/hey.dj)"
-        )?;
+                    djot_file_1,
+                    "# Hey everyone!\n\nThis is an example djot file!\n\n> Hey what's up. Link:\n\n[HIHIDHI](nested2/hey.dj)"
+                )?;
+                log::trace!("Flushing file 1");
                 djot_file_1.flush()?;
+                log::trace!("Done");
                 let mut djot_file_2 = File::create(&temp_dir.join("target/nested2/hey.dj"))?;
                 write!(djot_file_2, "File 2\n\n### Hey\n\n[link](../index.dj)")?;
+                log::trace!("Flushing file 2");
                 djot_file_2.flush()?;
+                log::trace!("Done");
                 let mut djot_file_3 = File::create(&temp_dir.join("target/nested3/third_file.dj"))?;
                 write!(
                     djot_file_3,
                     "File 3\n\n### What's good in the hous\n\n[link](../nested2/hey.dj)"
                 )?;
+                log::trace!("Flushing file 3");
                 djot_file_3.flush()?;
+                log::trace!("Djot files written");
                 let args = ConsoleArgs {
                     target_path: temp_dir.join("target"),
                     output_path: Some(temp_dir.join("output")),
                     clean: false,
                     no_warn: true,
                 };
+                log::trace!("Running program");
                 crate::run_program(args)?;
                 assert!(temp_dir.join("output/index.html").exists());
                 assert!(!temp_dir.join("output/index.dj").exists());
@@ -49,6 +61,8 @@ fn site_with_links() -> anyhow::Result<()> {
         }
     });
 
+    log::trace!("Done with testing");
+
     let _ = remove_dir_all(&temp_dir);
     match res {
         Ok(e) => e,
@@ -58,8 +72,9 @@ fn site_with_links() -> anyhow::Result<()> {
 
 #[test]
 fn site_warn_without_index() -> anyhow::Result<()> {
-    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("trace")).try_init();
-    let temp_dir = temp_dir();
+    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("trace"))
+        .try_init();
+    let temp_dir = temp_dir().join(temp_dir_name());
     // Perform test with catch
     let res = panic::catch_unwind(|| {
         {
@@ -92,8 +107,6 @@ fn site_warn_without_index() -> anyhow::Result<()> {
     });
 
     let _ = remove_dir_all(&temp_dir);
-
-    let _ = remove_dir_all(&temp_dir);
     match res {
         Ok(e) => {
             match e {
@@ -109,4 +122,15 @@ fn site_warn_without_index() -> anyhow::Result<()> {
         }
         _ => Err(anyhow::anyhow!("Panic occurred")),
     }
+}
+
+fn temp_dir_name() -> String {
+    format!(
+        ".djot-ssg-test-{}",
+        rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(6)
+            .map(char::from)
+            .collect::<String>()
+    )
 }

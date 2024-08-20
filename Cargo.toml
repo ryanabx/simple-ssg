@@ -15,3 +15,6 @@ jotdown = "0.4.1"
 log = "0.4.22"
 thiserror = "1.0.63"
 walkdir = "2.5.0"
+
+[dev-dependencies]
+rand = "0.8.5"
