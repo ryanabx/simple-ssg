@@ -17,7 +17,4 @@ This static site generator aims to support:
 - [x] Plaintext HTML
 - [x] Linking to pages within static site
 - [x] Image resources
-
-This project is not going to support these things:
-
-- [ ] Themes (Could be reconsidered)
+- [x] Templates (must be named template.html)

@@ -47,7 +47,6 @@ fn site_with_links() -> anyhow::Result<()> {
                     output_path: Some(temp_dir.join("output")),
                     clean: false,
                     no_warn: true,
-                    style: None,
                 };
                 log::trace!("Running program");
                 crate::run_program(args)?;
@@ -100,7 +99,6 @@ fn site_warn_without_index() -> anyhow::Result<()> {
                     output_path: Some(temp_dir.join("output")),
                     clean: false,
                     no_warn: true,
-                    style: None,
                 };
                 crate::run_program(args)?;
                 Ok(())

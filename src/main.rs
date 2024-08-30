@@ -2,7 +2,6 @@ use errors::SsgError;
 use jotdown::{Container, Event};
 use std::{
     env,
-    fs::read_to_string,
     path::{Path, PathBuf},
 };
 use utils::warn_or_error;
@@ -24,9 +23,6 @@ struct ConsoleArgs {
     /// Optional output path override. Defaults to ./output
     #[arg(short)]
     output_path: Option<PathBuf>,
-    /// Optional style.css. Defaults to no style
-    #[arg(long)]
-    style: Option<PathBuf>,
     /// Clean the output directory before generating the site. Useful for multiple runs
     #[arg(long)]
     clean: bool,
@@ -58,21 +54,11 @@ fn run_program(args: ConsoleArgs) -> anyhow::Result<()> {
             log::trace!("Clean successful!");
         }
     }
-    generate_site(
-        &args.target_path,
-        &output_path,
-        args.no_warn,
-        args.style.as_deref(),
-    )?;
+    generate_site(&args.target_path, &output_path, args.no_warn)?;
     Ok(())
 }
 
-fn generate_site(
-    target_path: &Path,
-    output_path: &Path,
-    no_warn: bool,
-    style: Option<&Path>,
-) -> anyhow::Result<()> {
+fn generate_site(target_path: &Path, output_path: &Path, no_warn: bool) -> anyhow::Result<()> {
     let _ = std::fs::create_dir_all(output_path);
     log::trace!(
         "Created output directory {:?} if it didn't exist...",
@@ -81,22 +67,14 @@ fn generate_site(
     if !utils::check_has_index(target_path) {
         warn_or_error(SsgError::IndexPageNotFound, no_warn)?;
     }
-    let style_str = match style.map(|pth| read_to_string(pth)) {
-        Some(Ok(val)) => Some(val),
-        Some(Err(e)) => {
-            return Err(anyhow::anyhow!(
-                "Style file at path {:?} could not be read! {}",
-                style.unwrap(),
-                e
-            ))
-        }
-        None => None,
-    };
     for entry in WalkDir::new(target_path) {
         match entry {
             Ok(direntry) => {
                 if direntry.path().is_dir() {
                     log::trace!("Path {:?} is a directory, continuing...", direntry.path());
+                    continue;
+                } else if direntry.path().ends_with("template.html") {
+                    log::trace!("Path {:?} is a template, continuing...", direntry.path());
                     continue;
                 }
                 log::trace!("Path: {:?}", direntry.path());
@@ -113,6 +91,7 @@ fn generate_site(
                 let _ = std::fs::create_dir_all(&new_path.parent().unwrap());
                 match direntry.path().extension().map(|x| x.to_str().unwrap()) {
                     Some("dj") | Some("djot") => {
+                        let template = utils::get_template_if_exists(direntry.path(), target_path)?;
                         let result_path = new_path.with_extension("html");
                         log::debug!(
                             "Generating .html from {:?} and moving to {:?}",
@@ -122,7 +101,7 @@ fn generate_site(
                         let djot_input = std::fs::read_to_string(direntry.path())?;
                         let html =
                             process_djot(&djot_input, direntry.path().parent().unwrap(), no_warn)?;
-                        let html_formatted = utils::wrap_html_content(&html, style_str.as_deref())?;
+                        let html_formatted = utils::wrap_html_content(&html, template.as_deref());
                         std::fs::write(&result_path, &html_formatted.as_bytes())?;
                     }
                     _ => {
