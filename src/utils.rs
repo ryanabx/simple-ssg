@@ -37,7 +37,7 @@ pub fn get_template_if_exists(
         let mut current = PathBuf::from(djot_document_path.parent().unwrap());
         loop {
             let template_file = current.join("template.html");
-            log::warn!("Checking for template file at {:?}", &template_file);
+            log::trace!("Checking for template file at {:?}", &template_file);
             if template_file.exists() {
                 return Ok(Some(read_to_string(&template_file)?));
             }
