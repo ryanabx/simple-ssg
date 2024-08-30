@@ -1,7 +1,4 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 pub fn get_relative_path(full_path: &Path, base_path: &Path) -> Option<PathBuf> {
     // Ensure the full path starts with the base path
@@ -27,10 +24,7 @@ pub fn warn_or_error(error: crate::errors::SsgError, no_warn: bool) -> anyhow::R
     }
 }
 
-pub fn wrap_html_content(content: &str, style: Option<&Path>) -> anyhow::Result<String> {
-    let style_string = style
-        .map(|pth| fs::read_to_string(pth))
-        .unwrap_or(Ok("".to_string()))?;
+pub fn wrap_html_content(content: &str, style: Option<&str>) -> anyhow::Result<String> {
     let html_content = format!(
         "<!DOCTYPE html> \
         <html lang=\"en\"> \
@@ -45,7 +39,8 @@ pub fn wrap_html_content(content: &str, style: Option<&Path>) -> anyhow::Result<
         </body> \
         </html>
         ",
-        &style_string, content,
+        &style.unwrap_or(""),
+        content,
     );
     Ok(html_content)
 }

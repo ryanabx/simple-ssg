@@ -2,6 +2,7 @@ use errors::SsgError;
 use jotdown::{Container, Event};
 use std::{
     env,
+    fs::read_to_string,
     path::{Path, PathBuf},
 };
 use utils::warn_or_error;
@@ -80,6 +81,17 @@ fn generate_site(
     if !utils::check_has_index(target_path) {
         warn_or_error(SsgError::IndexPageNotFound, no_warn)?;
     }
+    let style_str = match style.map(|pth| read_to_string(pth)) {
+        Some(Ok(val)) => Some(val),
+        Some(Err(e)) => {
+            return Err(anyhow::anyhow!(
+                "Style file at path {:?} could not be read! {}",
+                style.unwrap(),
+                e
+            ))
+        }
+        None => None,
+    };
     for entry in WalkDir::new(target_path) {
         match entry {
             Ok(direntry) => {
@@ -110,7 +122,7 @@ fn generate_site(
                         let djot_input = std::fs::read_to_string(direntry.path())?;
                         let html =
                             process_djot(&djot_input, direntry.path().parent().unwrap(), no_warn)?;
-                        let html_formatted = utils::wrap_html_content(&html, style)?;
+                        let html_formatted = utils::wrap_html_content(&html, style_str.as_deref())?;
                         std::fs::write(&result_path, &html_formatted.as_bytes())?;
                     }
                     _ => {
