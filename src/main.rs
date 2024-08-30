@@ -23,6 +23,9 @@ struct ConsoleArgs {
     /// Optional output path override. Defaults to ./output
     #[arg(short)]
     output_path: Option<PathBuf>,
+    /// Optional style.css. Defaults to no style
+    #[arg(long)]
+    style: Option<PathBuf>,
     /// Clean the output directory before generating the site. Useful for multiple runs
     #[arg(long)]
     clean: bool,
@@ -54,11 +57,21 @@ fn run_program(args: ConsoleArgs) -> anyhow::Result<()> {
             log::trace!("Clean successful!");
         }
     }
-    generate_site(&args.target_path, &output_path, args.no_warn)?;
+    generate_site(
+        &args.target_path,
+        &output_path,
+        args.no_warn,
+        args.style.as_deref(),
+    )?;
     Ok(())
 }
 
-fn generate_site(target_path: &Path, output_path: &Path, no_warn: bool) -> anyhow::Result<()> {
+fn generate_site(
+    target_path: &Path,
+    output_path: &Path,
+    no_warn: bool,
+    style: Option<&Path>,
+) -> anyhow::Result<()> {
     let _ = std::fs::create_dir_all(output_path);
     log::trace!(
         "Created output directory {:?} if it didn't exist...",
@@ -96,8 +109,9 @@ fn generate_site(target_path: &Path, output_path: &Path, no_warn: bool) -> anyho
                         );
                         let djot_input = std::fs::read_to_string(direntry.path())?;
                         let html =
-                            process_djot(&djot_input, direntry.path().parent().unwrap(), no_warn);
-                        std::fs::write(&result_path, &html?.as_bytes())?;
+                            process_djot(&djot_input, direntry.path().parent().unwrap(), no_warn)?;
+                        let html_formatted = utils::wrap_html_content(&html, style)?;
+                        std::fs::write(&result_path, &html_formatted.as_bytes())?;
                     }
                     _ => {
                         std::fs::copy(direntry.path(), &new_path)?;
