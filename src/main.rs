@@ -1,6 +1,7 @@
 use errors::SsgError;
 use jotdown::{Container, Event};
 use std::{
+    collections::HashMap,
     env,
     path::{Path, PathBuf},
 };
@@ -29,6 +30,9 @@ struct ConsoleArgs {
     /// Disallow any warnings
     #[arg(long)]
     no_warn: bool,
+    /// Specify the website prefix (defaults to local paths i.e. `./`)
+    #[arg(long)]
+    web_prefix: Option<String>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -54,11 +58,21 @@ fn run_program(args: ConsoleArgs) -> anyhow::Result<()> {
             log::trace!("Clean successful!");
         }
     }
-    generate_site(&args.target_path, &output_path, args.no_warn)?;
+    generate_site(
+        &args.target_path,
+        &output_path,
+        args.no_warn,
+        args.web_prefix.as_deref(),
+    )?;
     Ok(())
 }
 
-fn generate_site(target_path: &Path, output_path: &Path, no_warn: bool) -> anyhow::Result<()> {
+fn generate_site(
+    target_path: &Path,
+    output_path: &Path,
+    no_warn: bool,
+    web_prefix: Option<&str>,
+) -> anyhow::Result<()> {
     let _ = std::fs::create_dir_all(output_path);
     log::trace!(
         "Created output directory {:?} if it didn't exist...",
@@ -67,9 +81,13 @@ fn generate_site(target_path: &Path, output_path: &Path, no_warn: bool) -> anyho
     if !utils::check_has_index(target_path) {
         warn_or_error(SsgError::IndexPageNotFound, no_warn)?;
     }
+    let mut html_results: HashMap<PathBuf, String> = HashMap::new();
+    let mut table_of_contents_html = "<ul>".to_string();
+    log::info!("1/3: Site generation and indexing...");
     for entry in WalkDir::new(target_path) {
         match entry {
             Ok(direntry) => {
+                log::debug!("{:?}", direntry.path());
                 if direntry.path().is_dir() {
                     log::trace!("Path {:?} is a directory, continuing...", direntry.path());
                     continue;
@@ -78,9 +96,9 @@ fn generate_site(target_path: &Path, output_path: &Path, no_warn: bool) -> anyho
                     continue;
                 }
                 log::trace!("Path: {:?}", direntry.path());
-                let new_path = match utils::get_relative_path(direntry.path(), &target_path) {
-                    Some(relative) => output_path.join(relative),
-                    None => {
+                let relative = match direntry.path().strip_prefix(&target_path) {
+                    Ok(relative) => relative.to_path_buf(),
+                    Err(_) => {
                         warn_or_error(
                             SsgError::PathNotRelative(direntry.path().to_path_buf()),
                             no_warn,
@@ -88,6 +106,7 @@ fn generate_site(target_path: &Path, output_path: &Path, no_warn: bool) -> anyho
                         continue;
                     }
                 };
+                let new_path = output_path.join(&relative);
                 let _ = std::fs::create_dir_all(&new_path.parent().unwrap());
                 match direntry.path().extension().map(|x| x.to_str().unwrap()) {
                     Some("dj") | Some("djot") => {
@@ -99,10 +118,20 @@ fn generate_site(target_path: &Path, output_path: &Path, no_warn: bool) -> anyho
                             &result_path
                         );
                         let djot_input = std::fs::read_to_string(direntry.path())?;
-                        let html =
-                            process_djot(&djot_input, direntry.path().parent().unwrap(), no_warn)?;
+                        let html = process_djot(
+                            &djot_input,
+                            direntry.path().parent().unwrap(),
+                            no_warn,
+                            web_prefix,
+                        )?;
                         let html_formatted = utils::wrap_html_content(&html, template.as_deref());
-                        std::fs::write(&result_path, &html_formatted.as_bytes())?;
+                        html_results.insert(result_path, html_formatted);
+                        table_of_contents_html.push_str(&format!(
+                            "<li><a href=\"{}{}\">{}</a></li>",
+                            &web_prefix.unwrap_or("./"),
+                            &relative.to_string_lossy(),
+                            &relative.to_string_lossy()
+                        ))
                     }
                     _ => {
                         std::fs::copy(direntry.path(), &new_path)?;
@@ -114,16 +143,66 @@ fn generate_site(target_path: &Path, output_path: &Path, no_warn: bool) -> anyho
             }
         }
     }
+    table_of_contents_html.push_str("</ul>");
+    // Validation pass
+    log::info!("2/3: Generating additional site content (if necessary) and saving...");
+    for (path, text) in html_results.iter() {
+        let text = text.replace("<!-- {TABLE_OF_CONTENTS} -->", &table_of_contents_html);
+        std::fs::write(&path, &text.as_bytes())?;
+    }
+
+    log::info!("3/3: Done!");
+
     Ok(())
 }
 
-fn process_djot(djot_input: &str, file_parent_dir: &Path, no_warn: bool) -> anyhow::Result<String> {
+fn process_markdown(
+    markdown_input: &str,
+    file_parent_dir: &Path,
+    no_warn: bool,
+    web_prefix: Option<&str>,
+) -> anyhow::Result<String> {
+    let events = pulldown_cmark::Parser::new(&markdown_input).map(
+        |event| -> anyhow::Result<pulldown_cmark::Event> {
+            match event {
+                pulldown_cmark::Event::Start(pulldown_cmark::Tag::Link { link_type, dest_url, title, id }) => {
+                    let inner = dest_url.to_string();
+                    let referenced_path = file_parent_dir.join(title.to_string());
+                    if referenced_path
+                        .extension()
+                        .is_some_and(|ext| ext == "dj" || ext == "djot")
+                    {
+                        let new_path = Path::new(&inner).with_extension("html");
+                        if !referenced_path.exists() {
+                            warn_or_error(SsgError::LinkError(referenced_path), no_warn)?;
+                        }
+                        Ok(pulldown_cmark::Event::Start(pulldown_cmark::Tag::Link { link_type, dest_url: new_path.to_string_lossy().into(), title, id }))
+                    } else {
+                        Ok(pulldown_cmark::Event::Start(pulldown_cmark::Tag::Link { link_type, dest_url, title, id }))
+                    }
+                },
+                _ => Ok(event)
+            }
+        }
+    ).collect::<Result<Vec<pulldown_cmark::Event>, _>>()?;
+
+    let mut html = String::new();
+    pulldown_cmark::html::push_html(&mut html, events.iter().cloned());
+    Ok(html)
+}
+
+fn process_djot(
+    djot_input: &str,
+    file_parent_dir: &Path,
+    no_warn: bool,
+    web_prefix: Option<&str>,
+) -> anyhow::Result<String> {
     let events = jotdown::Parser::new(&djot_input)
         .map(|event| -> anyhow::Result<Event> {
             match event {
-                Event::Start(Container::Link(s, link_type), a) => {
-                    let inner = s.to_string();
-                    let referenced_path = file_parent_dir.join(s.to_string());
+                Event::Start(Container::Link(text, link_type), attributes) => {
+                    let inner = text.to_string();
+                    let referenced_path = file_parent_dir.join(text.to_string());
                     if referenced_path
                         .extension()
                         .is_some_and(|ext| ext == "dj" || ext == "djot")
@@ -132,22 +211,26 @@ fn process_djot(djot_input: &str, file_parent_dir: &Path, no_warn: bool) -> anyh
                         if referenced_path.exists() {
                             Ok(Event::Start(
                                 Container::Link(
-                                    std::borrow::Cow::Owned(new_path.to_string_lossy().to_string()),
+                                    std::borrow::Cow::Owned(format!(
+                                        "{}{}",
+                                        web_prefix.unwrap_or(""),
+                                        new_path.to_string_lossy()
+                                    )),
                                     link_type,
                                 ),
-                                a,
+                                attributes,
                             ))
                         } else {
                             warn_or_error(SsgError::LinkError(referenced_path), no_warn)?;
-                            Ok(Event::Start(Container::Link(s, link_type), a))
+                            Ok(Event::Start(Container::Link(text, link_type), attributes))
                         }
                     } else {
-                        Ok(Event::Start(Container::Link(s, link_type), a))
+                        Ok(Event::Start(Container::Link(text, link_type), attributes))
                     }
                 }
-                Event::End(Container::Link(s, link_type)) => {
-                    let inner = s.to_string();
-                    let referenced_path = file_parent_dir.join(s.to_string());
+                Event::End(Container::Link(text, link_type)) => {
+                    let inner = text.to_string();
+                    let referenced_path = file_parent_dir.join(text.to_string());
                     if referenced_path
                         .extension()
                         .is_some_and(|ext| ext == "dj" || ext == "djot")
@@ -155,14 +238,18 @@ fn process_djot(djot_input: &str, file_parent_dir: &Path, no_warn: bool) -> anyh
                         let new_path = Path::new(&inner).with_extension("html");
                         if referenced_path.exists() {
                             Ok(Event::End(Container::Link(
-                                std::borrow::Cow::Owned(new_path.to_string_lossy().to_string()),
+                                std::borrow::Cow::Owned(format!(
+                                    "{}{}",
+                                    web_prefix.unwrap_or(""),
+                                    new_path.to_string_lossy()
+                                )),
                                 link_type,
                             )))
                         } else {
-                            Ok(Event::End(Container::Link(s, link_type)))
+                            Ok(Event::End(Container::Link(text, link_type)))
                         }
                     } else {
-                        Ok(Event::End(Container::Link(s, link_type)))
+                        Ok(Event::End(Container::Link(text, link_type)))
                     }
                 }
                 _ => Ok(event),
