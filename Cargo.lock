@@ -330,7 +330,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "smpl-ssg"
+name = "simple-ssg"
 version = "3.0.0"
 dependencies = [
  "anyhow",

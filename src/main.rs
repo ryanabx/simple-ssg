@@ -38,7 +38,7 @@ struct ConsoleArgs {
 
 fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
-    log::trace!("Begin smpl-ssg::main()");
+    log::trace!("Begin simple-ssg::main()");
     let args = ConsoleArgs::parse();
     run_program(args)
 }

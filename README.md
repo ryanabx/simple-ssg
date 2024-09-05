@@ -3,9 +3,9 @@
 ## Usage
 
 ```shell
-cargo install smpl-ssg
+cargo install simple-ssg
 
-smpl-ssg <TARGET_DIRECTORY> -o [OUTPUT_DIRECTORY]
+simple-ssg <TARGET_DIRECTORY> -o [OUTPUT_DIRECTORY]
 ```
 
 ## Support Goals

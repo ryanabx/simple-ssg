@@ -5,21 +5,21 @@
 ## Installation
 
 ```shell
-cargo install smpl-ssg
+cargo install simple-ssg
 ```
 
 ## Building Locally
 
 ```shell
-git clone https://github.com/ryanabx/smpl-ssg
-cd smpl-ssg
+git clone https://github.com/ryanabx/simple-ssg
+cd simple-ssg
 cargo build --release
 ```
 
 ## Usage
 
 ```shell
-smpl-ssg <PATH_TO_TARGET>
+simple-ssg <PATH_TO_TARGET>
 ```
 
 ### Options
@@ -36,4 +36,4 @@ smpl-ssg <PATH_TO_TARGET>
 ## Debugging
 
 > *TIP:* Use the `RUST_LOG` environment variable to change the log level of the application: \
-> i.e. `RUST_LOG=trace smpl-ssg ...`
+> i.e. `RUST_LOG=trace simple-ssg ...`

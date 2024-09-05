@@ -1,6 +1,6 @@
 # Templating
 
-Using templates in `smpl-ssg` is simple! All you need to do is provide a `template.html` file in any directory of your documentation.
+Using templates in `simple-ssg` is simple! All you need to do is provide a `template.html` file in any directory of your documentation.
 
 > **NOTE:** A nested `template.html` will take priority over a parent folder's `template.html`
 
