@@ -1,12 +1,12 @@
 [package]
-name = "djot-ssg"
+name = "smpl-ssg"
 authors = ["Ryan Brue <ryanbrue.dev@gmail.com>"]
-repository = "https://github.com/ryanabx/djot-ssg"
+repository = "https://github.com/ryanabx/smpl-ssg"
 license = "MIT"
-readme = "README.dj"
-version = "2.0.1"
+readme = "README.md"
+version = "3.0.0"
 edition = "2021"
-description = "Plain and simple static site generator for Djot markup"
+description = "Plain and simple static site generator for Djot and Markdown light markup languages"
 
 [dependencies]
 anyhow = "1.0.86"

@@ -128,7 +128,7 @@ fn site_warn_without_index() -> anyhow::Result<()> {
 
 fn temp_dir_name() -> String {
     format!(
-        ".djot-ssg-test-{}",
+        ".smpl-ssg-test-{}",
         rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(6)

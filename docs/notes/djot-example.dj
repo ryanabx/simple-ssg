@@ -1,0 +1,9 @@
+# Djot example
+
+---
+
+This is a simple djot example to showcase this static site generator! It gets put into the template called `template.html` in the home directory of this documentation, and as a result it has some nice formatting and a simple table of contents! The template is of course not required though :)
+
+---
+
+For more, see the [Markdown example](./markdown-example.md) and go to the command reference at [../command_reference.md](../command_reference.dj)

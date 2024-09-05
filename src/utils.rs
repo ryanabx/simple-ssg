@@ -4,7 +4,9 @@ use std::{
 };
 
 pub fn check_has_index(target_path: &Path) -> bool {
-    target_path.join("index.dj").exists() || target_path.join("index.djot").exists()
+    target_path.join("index.dj").exists()
+        || target_path.join("index.djot").exists()
+        || target_path.join("index.md").exists()
 }
 
 pub fn warn_or_error(error: crate::errors::SsgError, no_warn: bool) -> anyhow::Result<()> {

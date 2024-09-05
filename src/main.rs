@@ -1,5 +1,6 @@
 use errors::SsgError;
 use jotdown::{Container, Event};
+use pulldown_cmark::CowStr;
 use std::{
     collections::HashMap,
     env,
@@ -37,7 +38,7 @@ struct ConsoleArgs {
 
 fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
-    log::trace!("Begin djot-ssg::main()");
+    log::trace!("Begin smpl-ssg::main()");
     let args = ConsoleArgs::parse();
     run_program(args)
 }
@@ -109,7 +110,7 @@ fn generate_site(
                 let new_path = output_path.join(&relative);
                 let _ = std::fs::create_dir_all(&new_path.parent().unwrap());
                 match direntry.path().extension().map(|x| x.to_str().unwrap()) {
-                    Some("dj") | Some("djot") => {
+                    Some("dj") | Some("djot") | Some("md") => {
                         let template = utils::get_template_if_exists(direntry.path(), target_path)?;
                         let result_path = new_path.with_extension("html");
                         log::debug!(
@@ -117,20 +118,29 @@ fn generate_site(
                             direntry.path(),
                             &result_path
                         );
-                        let djot_input = std::fs::read_to_string(direntry.path())?;
-                        let html = process_djot(
-                            &djot_input,
-                            direntry.path().parent().unwrap(),
-                            no_warn,
-                            web_prefix,
-                        )?;
+                        let input_str = std::fs::read_to_string(direntry.path())?;
+                        let html = match direntry.path().extension().map(|x| x.to_str().unwrap()) {
+                            Some("md") => process_markdown(
+                                &input_str,
+                                direntry.path().parent().unwrap(),
+                                no_warn,
+                                web_prefix,
+                            )?,
+                            Some("dj") | Some("djot") => process_djot(
+                                &input_str,
+                                direntry.path().parent().unwrap(),
+                                no_warn,
+                                web_prefix,
+                            )?,
+                            _ => unreachable!(),
+                        };
                         let html_formatted = utils::wrap_html_content(&html, template.as_deref());
                         html_results.insert(result_path, html_formatted);
                         table_of_contents_html.push_str(&format!(
                             "<li><a href=\"{}{}\">{}</a></li>",
                             &web_prefix.unwrap_or("./"),
-                            &relative.to_string_lossy(),
-                            &relative.to_string_lossy()
+                            &relative.with_extension("html").to_string_lossy(),
+                            &relative.with_extension("html").to_string_lossy()
                         ))
                     }
                     _ => {
@@ -156,35 +166,58 @@ fn generate_site(
     Ok(())
 }
 
-fn process_markdown(
+fn process_markdown<'a>(
     markdown_input: &str,
     file_parent_dir: &Path,
     no_warn: bool,
     web_prefix: Option<&str>,
 ) -> anyhow::Result<String> {
-    let events = pulldown_cmark::Parser::new(&markdown_input).map(
-        |event| -> anyhow::Result<pulldown_cmark::Event> {
+    let events = pulldown_cmark::Parser::new(&markdown_input)
+        .map(|event| -> anyhow::Result<pulldown_cmark::Event> {
             match event {
-                pulldown_cmark::Event::Start(pulldown_cmark::Tag::Link { link_type, dest_url, title, id }) => {
+                pulldown_cmark::Event::Start(pulldown_cmark::Tag::Link {
+                    link_type,
+                    dest_url,
+                    title,
+                    id,
+                }) => {
                     let inner = dest_url.to_string();
-                    let referenced_path = file_parent_dir.join(title.to_string());
+                    let referenced_path = file_parent_dir.join(&inner);
                     if referenced_path
                         .extension()
-                        .is_some_and(|ext| ext == "dj" || ext == "djot")
+                        .is_some_and(|ext| ext == "dj" || ext == "djot" || ext == "md")
                     {
                         let new_path = Path::new(&inner).with_extension("html");
                         if !referenced_path.exists() {
                             warn_or_error(SsgError::LinkError(referenced_path), no_warn)?;
                         }
-                        Ok(pulldown_cmark::Event::Start(pulldown_cmark::Tag::Link { link_type, dest_url: new_path.to_string_lossy().into(), title, id }))
+                        let dest_url = CowStr::Boxed(
+                            format!(
+                                "{}{}",
+                                web_prefix.unwrap_or(""),
+                                new_path.to_string_lossy().to_string()
+                            )
+                            .into_boxed_str(),
+                        );
+                        Ok(pulldown_cmark::Event::Start(pulldown_cmark::Tag::Link {
+                            link_type,
+                            dest_url,
+                            title,
+                            id,
+                        }))
                     } else {
-                        Ok(pulldown_cmark::Event::Start(pulldown_cmark::Tag::Link { link_type, dest_url, title, id }))
+                        Ok(pulldown_cmark::Event::Start(pulldown_cmark::Tag::Link {
+                            link_type,
+                            dest_url,
+                            title,
+                            id,
+                        }))
                     }
-                },
-                _ => Ok(event)
+                }
+                _ => Ok(event),
             }
-        }
-    ).collect::<Result<Vec<pulldown_cmark::Event>, _>>()?;
+        })
+        .collect::<Result<Vec<pulldown_cmark::Event>, _>>()?;
 
     let mut html = String::new();
     pulldown_cmark::html::push_html(&mut html, events.iter().cloned());
@@ -202,10 +235,10 @@ fn process_djot(
             match event {
                 Event::Start(Container::Link(text, link_type), attributes) => {
                     let inner = text.to_string();
-                    let referenced_path = file_parent_dir.join(text.to_string());
+                    let referenced_path = file_parent_dir.join(&inner);
                     if referenced_path
                         .extension()
-                        .is_some_and(|ext| ext == "dj" || ext == "djot")
+                        .is_some_and(|ext| ext == "dj" || ext == "djot" || ext == "md")
                     {
                         let new_path = Path::new(&inner).with_extension("html");
                         if referenced_path.exists() {
@@ -230,10 +263,10 @@ fn process_djot(
                 }
                 Event::End(Container::Link(text, link_type)) => {
                     let inner = text.to_string();
-                    let referenced_path = file_parent_dir.join(text.to_string());
+                    let referenced_path = file_parent_dir.join(&inner);
                     if referenced_path
                         .extension()
-                        .is_some_and(|ext| ext == "dj" || ext == "djot")
+                        .is_some_and(|ext| ext == "dj" || ext == "djot" || ext == "md")
                     {
                         let new_path = Path::new(&inner).with_extension("html");
                         if referenced_path.exists() {

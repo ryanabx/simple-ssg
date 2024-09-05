@@ -1,10 +1,10 @@
-# Djot Static Site Generator
+# SMPL Static Site Generator
 
-<https://github.com/ryanabx/djot-ssg>
+<https://github.com/ryanabx/smpl-ssg>
 
 [Command Reference](./command_reference)
 
-## A simple static site generator for Djot!
+## A simple static site generator for Djot/Markdown!
 
 ### What is Djot?
 

@@ -131,21 +131,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3fd119d74b830634cea2a0f58bbd0d54540518a14397557951e79340abc28c0"
 
 [[package]]
-name = "djot-ssg"
-version = "2.0.1"
-dependencies = [
- "anyhow",
- "clap",
- "env_logger",
- "jotdown",
- "log",
- "pulldown-cmark",
- "rand",
- "thiserror",
- "walkdir",
-]
-
-[[package]]
 name = "env_filter"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -342,6 +327,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "smpl-ssg"
+version = "3.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "env_logger",
+ "jotdown",
+ "log",
+ "pulldown-cmark",
+ "rand",
+ "thiserror",
+ "walkdir",
 ]
 
 [[package]]
