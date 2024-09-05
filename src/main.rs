@@ -97,7 +97,7 @@ fn generate_site(
                     continue;
                 }
                 log::trace!("Path: {:?}", direntry.path());
-                let relative = match direntry.path().strip_prefix(&target_path) {
+                let relative = match direntry.path().strip_prefix(target_path) {
                     Ok(relative) => relative.to_path_buf(),
                     Err(_) => {
                         warn_or_error(
@@ -108,7 +108,7 @@ fn generate_site(
                     }
                 };
                 let new_path = output_path.join(&relative);
-                let _ = std::fs::create_dir_all(&new_path.parent().unwrap());
+                let _ = std::fs::create_dir_all(new_path.parent().unwrap());
                 match direntry.path().extension().map(|x| x.to_str().unwrap()) {
                     Some("dj") | Some("djot") | Some("md") => {
                         let template = utils::get_template_if_exists(direntry.path(), target_path)?;
@@ -158,7 +158,7 @@ fn generate_site(
     log::info!("2/3: Generating additional site content (if necessary) and saving...");
     for (path, text) in html_results.iter() {
         let text = text.replace("<!-- {TABLE_OF_CONTENTS} -->", &table_of_contents_html);
-        std::fs::write(&path, &text.as_bytes())?;
+        std::fs::write(path, text.as_bytes())?;
     }
 
     log::info!("3/3: Done!");
@@ -166,13 +166,13 @@ fn generate_site(
     Ok(())
 }
 
-fn process_markdown<'a>(
+fn process_markdown(
     markdown_input: &str,
     file_parent_dir: &Path,
     no_warn: bool,
     web_prefix: Option<&str>,
 ) -> anyhow::Result<String> {
-    let events = pulldown_cmark::Parser::new(&markdown_input)
+    let events = pulldown_cmark::Parser::new(markdown_input)
         .map(|event| -> anyhow::Result<pulldown_cmark::Event> {
             match event {
                 pulldown_cmark::Event::Start(pulldown_cmark::Tag::Link {
@@ -192,12 +192,8 @@ fn process_markdown<'a>(
                             warn_or_error(SsgError::LinkError(referenced_path), no_warn)?;
                         }
                         let dest_url = CowStr::Boxed(
-                            format!(
-                                "{}{}",
-                                web_prefix.unwrap_or(""),
-                                new_path.to_string_lossy().to_string()
-                            )
-                            .into_boxed_str(),
+                            format!("{}{}", web_prefix.unwrap_or(""), new_path.to_string_lossy())
+                                .into_boxed_str(),
                         );
                         Ok(pulldown_cmark::Event::Start(pulldown_cmark::Tag::Link {
                             link_type,
@@ -230,7 +226,7 @@ fn process_djot(
     no_warn: bool,
     web_prefix: Option<&str>,
 ) -> anyhow::Result<String> {
-    let events = jotdown::Parser::new(&djot_input)
+    let events = jotdown::Parser::new(djot_input)
         .map(|event| -> anyhow::Result<Event> {
             match event {
                 Event::Start(Container::Link(text, link_type), attributes) => {
