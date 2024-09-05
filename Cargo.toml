@@ -4,7 +4,7 @@ authors = ["Ryan Brue <ryanbrue.dev@gmail.com>"]
 repository = "https://github.com/ryanabx/simple-ssg"
 license = "MIT"
 readme = "README.md"
-version = "3.0.0"
+version = "3.0.1"
 edition = "2021"
 description = "Plain and simple static site generator for Djot and Markdown light markup languages"
 

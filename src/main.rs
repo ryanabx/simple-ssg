@@ -2,7 +2,6 @@ use errors::SsgError;
 use jotdown::{Container, Event};
 use pulldown_cmark::CowStr;
 use std::{
-    collections::HashMap,
     env,
     path::{Path, PathBuf},
 };
@@ -68,6 +67,19 @@ fn run_program(args: ConsoleArgs) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Clone, Debug)]
+pub enum FirstPassResult {
+    Dir {
+        depth: usize,
+        relative_path: PathBuf,
+    },
+    HtmlOutput {
+        depth: usize,
+        html: String,
+        relative_path: PathBuf,
+    },
+}
+
 fn generate_site(
     target_path: &Path,
     output_path: &Path,
@@ -82,21 +94,12 @@ fn generate_site(
     if !utils::check_has_index(target_path) {
         warn_or_error(SsgError::IndexPageNotFound, no_warn)?;
     }
-    let mut html_results: HashMap<PathBuf, String> = HashMap::new();
-    let mut table_of_contents_html = "<ul>".to_string();
+    let mut first_pass_results = Vec::new();
+
     log::info!("1/3: Site generation and indexing...");
     for entry in WalkDir::new(target_path) {
         match entry {
             Ok(direntry) => {
-                log::debug!("{:?}", direntry.path());
-                if direntry.path().is_dir() {
-                    log::trace!("Path {:?} is a directory, continuing...", direntry.path());
-                    continue;
-                } else if direntry.path().ends_with("template.html") {
-                    log::trace!("Path {:?} is a template, continuing...", direntry.path());
-                    continue;
-                }
-                log::trace!("Path: {:?}", direntry.path());
                 let relative = match direntry.path().strip_prefix(target_path) {
                     Ok(relative) => relative.to_path_buf(),
                     Err(_) => {
@@ -107,6 +110,19 @@ fn generate_site(
                         continue;
                     }
                 };
+                log::debug!("{:?} :: {}", &relative, direntry.depth());
+                if direntry.path().is_dir() {
+                    log::trace!("Path {:?} is a directory, continuing...", direntry.path());
+                    first_pass_results.push(FirstPassResult::Dir {
+                        depth: direntry.depth(),
+                        relative_path: relative,
+                    });
+                    continue;
+                } else if direntry.path().ends_with("template.html") {
+                    log::trace!("Path {:?} is a template, continuing...", direntry.path());
+                    continue;
+                }
+                log::trace!("Path: {:?}", direntry.path());
                 let new_path = output_path.join(&relative);
                 let _ = std::fs::create_dir_all(new_path.parent().unwrap());
                 match direntry.path().extension().map(|x| x.to_str().unwrap()) {
@@ -135,13 +151,11 @@ fn generate_site(
                             _ => unreachable!(),
                         };
                         let html_formatted = utils::wrap_html_content(&html, template.as_deref());
-                        html_results.insert(result_path, html_formatted);
-                        table_of_contents_html.push_str(&format!(
-                            "<li><a href=\"{}{}\">{}</a></li>",
-                            &web_prefix.unwrap_or("./"),
-                            &relative.with_extension("html").to_string_lossy(),
-                            &relative.with_extension("html").to_string_lossy()
-                        ))
+                        first_pass_results.push(FirstPassResult::HtmlOutput {
+                            depth: direntry.depth(),
+                            html: html_formatted,
+                            relative_path: relative.with_extension("html"),
+                        });
                     }
                     _ => {
                         std::fs::copy(direntry.path(), &new_path)?;
@@ -153,12 +167,30 @@ fn generate_site(
             }
         }
     }
-    table_of_contents_html.push_str("</ul>");
     // Validation pass
     log::info!("2/3: Generating additional site content (if necessary) and saving...");
-    for (path, text) in html_results.iter() {
-        let text = text.replace("<!-- {TABLE_OF_CONTENTS} -->", &table_of_contents_html);
-        std::fs::write(path, text.as_bytes())?;
+
+    for result in first_pass_results.clone() {
+        match result {
+            FirstPassResult::Dir { .. } => continue,
+            FirstPassResult::HtmlOutput {
+                depth,
+                html,
+                relative_path,
+            } => {
+                let table_of_contents = generate_table_of_contents(
+                    &first_pass_results,
+                    depth,
+                    &relative_path,
+                    web_prefix,
+                );
+                let text = html.replace("<!-- {TABLE_OF_CONTENTS} -->", &table_of_contents);
+                let result_path = output_path.join(&relative_path);
+                log::debug!("{:?} :: {:?}", &result_path, &relative_path);
+                std::fs::write(&result_path, text.as_bytes())?;
+            }
+        }
+        // Generate the table of contents
     }
 
     log::info!("3/3: Done!");
@@ -287,4 +319,72 @@ fn process_djot(
         .collect::<Result<Vec<Event>, _>>()?;
     let html = jotdown::html::render_to_string(events.iter().cloned());
     Ok(html)
+}
+
+fn generate_table_of_contents(
+    results: &Vec<FirstPassResult>,
+    my_depth: usize,
+    my_result: &Path,
+    web_prefix: Option<&str>,
+) -> String {
+    let mut table_of_contents_html = "<ul>".to_string();
+    let mut prev_depth = 0;
+    for result in results {
+        match result {
+            FirstPassResult::Dir {
+                depth,
+                relative_path,
+            } => {
+                let mut depth_diff = *depth as i32 - prev_depth as i32;
+                while depth_diff < 0 {
+                    table_of_contents_html.push_str("</ul>");
+                    depth_diff += 1;
+                }
+                prev_depth = *depth;
+                if *depth > 0 {
+                    table_of_contents_html.push_str(&format!(
+                        "<li>{}</li><ul>",
+                        &relative_path.to_string_lossy(),
+                    ));
+                }
+            }
+            FirstPassResult::HtmlOutput {
+                relative_path,
+                depth,
+                ..
+            } => {
+                let mut depth_diff = *depth as i32 - prev_depth as i32;
+                while depth_diff < 0 {
+                    table_of_contents_html.push_str("</ul>");
+                    depth_diff += 1;
+                }
+                prev_depth = *depth;
+                if relative_path == my_result {
+                    table_of_contents_html
+                        .push_str(&format!("<li>{}</li>", &relative_path.to_string_lossy()))
+                } else {
+                    table_of_contents_html.push_str(&format!(
+                        "<li><a href=\"{}{}{}\">{}</a></li>",
+                        if my_depth > 1 {
+                            "../".repeat(my_depth - 1)
+                        } else {
+                            "".to_string()
+                        },
+                        &web_prefix.unwrap_or("./"),
+                        &relative_path.to_string_lossy(),
+                        &relative_path.to_string_lossy()
+                    ))
+                }
+            }
+        }
+    }
+
+    let mut depth_diff = 0 - prev_depth as i32;
+    while depth_diff < 0 {
+        table_of_contents_html.push_str("</ul>");
+        depth_diff += 1;
+    }
+    // log::debug!("Table of contents: {}", &table_of_contents_html);
+
+    table_of_contents_html
 }
