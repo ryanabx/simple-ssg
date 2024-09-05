@@ -343,7 +343,7 @@ fn generate_table_of_contents(
                 prev_depth = *depth;
                 if *depth > 0 {
                     table_of_contents_html.push_str(&format!(
-                        "<li>{}</li><ul>",
+                        "<li><b><u>{}:</u></b></li><ul>",
                         &relative_path.to_string_lossy(),
                     ));
                 }
@@ -361,7 +361,7 @@ fn generate_table_of_contents(
                 prev_depth = *depth;
                 if relative_path == my_result {
                     table_of_contents_html
-                        .push_str(&format!("<li>{}</li>", &relative_path.to_string_lossy()))
+                        .push_str(&format!("<li><b>{}</b></li>", &relative_path.to_string_lossy()))
                 } else {
                     table_of_contents_html.push_str(&format!(
                         "<li><a href=\"{}{}{}\">{}</a></li>",
@@ -370,7 +370,7 @@ fn generate_table_of_contents(
                         } else {
                             "".to_string()
                         },
-                        &web_prefix.unwrap_or("./"),
+                        &web_prefix.unwrap_or(""), // "./" if "" doesn't work
                         &relative_path.to_string_lossy(),
                         &relative_path.to_string_lossy()
                     ))
