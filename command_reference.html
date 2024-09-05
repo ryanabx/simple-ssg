@@ -1106,49 +1106,52 @@
   margin-top: 0 !important;
 }
 
+body {
+  padding-left: 5%;
+  padding-right: 5%;
+}
+
         </style>
     </head>
     <body class="markdown-body">
-        <!-- {TABLE_OF_CONTENTS} -->
+      <h1>Contents:</h1>
+        <ul><li><a href="./notes/contact-ryanabx.html">notes/contact-ryanabx.html</a></li><li><a href="./notes/djot-example.html">notes/djot-example.html</a></li><li><a href="./notes/markdown-example.html">notes/markdown-example.html</a></li><li><a href="./index.html">index.html</a></li><li><a href="./command_reference.html">command_reference.html</a></li><li><a href="./templating.html">templating.html</a></li></ul>
+      <hr>
         <section id="Djot-command-reference">
 <h1>Djot command reference</h1>
 <p><a href="./index.html">Back to main page</a></p>
 <section id="Installation">
 <h2>Installation</h2>
-<pre><code class="language-shell">cargo install djot-ssg
+<pre><code class="language-shell">cargo install simple-ssg
 </code></pre>
 </section>
 <section id="Building-Locally">
 <h2>Building Locally</h2>
-<pre><code class="language-shell">git clone https://github.com/ryanabx/djot-ssg
-cd djot-ssg
+<pre><code class="language-shell">git clone https://github.com/ryanabx/simple-ssg
+cd simple-ssg
 cargo build --release
 </code></pre>
 </section>
 <section id="Usage">
 <h2>Usage</h2>
-<pre><code class="language-shell">djot-ssg &lt;PATH_TO_TARGET&gt;
+<pre><code class="language-shell">simple-ssg &lt;PATH_TO_TARGET&gt;
 </code></pre>
 <section id="Options">
 <h3>Options</h3>
-<ul>
-<li>
-<code>-o [OUTPUT_DIR]</code>: Override the output directory, by default it is <code>{PWD}/output</code>
-</li>
-<li>
-<code>--clean</code>: Clean the output directory before generating the site
-</li>
-<li>
-<code>--no-warn</code>: Any warnings will be treated as errors
-</li>
-</ul>
+<pre><code>-o &lt;OUTPUT_PATH&gt;               Optional output path override. Defaults to ./output
+      --clean                    Clean the output directory before generating the site. Useful for multiple runs
+      --no-warn                  Disallow any warnings
+      --web-prefix &lt;WEB_PREFIX&gt;  Specify the website prefix (defaults to local paths i.e. `./`)
+  -h, --help                     Print help
+  -V, --version                  Print version
+</code></pre>
 </section>
 </section>
 <section id="Debugging">
 <h2>Debugging</h2>
 <blockquote>
 <p><strong>TIP:</strong> Use the <code>RUST_LOG</code> environment variable to change the log level of the application: <br>
-i.e. <code>RUST_LOG=trace djot-ssg ...</code></p>
+i.e. <code>RUST_LOG=trace simple-ssg ...</code></p>
 </blockquote>
 </section>
 </section>

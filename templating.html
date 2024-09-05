@@ -1106,11 +1106,39 @@
   margin-top: 0 !important;
 }
 
+body {
+  padding-left: 5%;
+  padding-right: 5%;
+}
+
         </style>
     </head>
     <body class="markdown-body">
-        <!-- {TABLE_OF_CONTENTS} -->
-        
+      <h1>Contents:</h1>
+        <ul><li><a href="./notes/contact-ryanabx.html">notes/contact-ryanabx.html</a></li><li><a href="./notes/djot-example.html">notes/djot-example.html</a></li><li><a href="./notes/markdown-example.html">notes/markdown-example.html</a></li><li><a href="./index.html">index.html</a></li><li><a href="./command_reference.html">command_reference.html</a></li><li><a href="./templating.html">templating.html</a></li></ul>
+      <hr>
+        <h1>Templating</h1>
+<p>Using templates in <code>simple-ssg</code> is simple! All you need to do is provide a <code>template.html</code> file in any directory of your documentation.</p>
+<blockquote>
+<p><strong>NOTE:</strong> A nested <code>template.html</code> will take priority over a parent folder's <code>template.html</code></p>
+</blockquote>
+<p>An example template could be this:</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+    &lt;head&gt;
+        &lt;style&gt;
+            &lt;!-- insert a style here --&gt;
+        &lt;/style&gt;
+    &lt;/head&gt;
+    &lt;body&gt;
+      &lt;h1&gt;Contents:&lt;/h1&gt;
+        &lt;!-- {TABLE_OF_CONTENTS} --&gt;
+      &lt;hr&gt;
+        &lt;!-- {CONTENT} --&gt;
+    &lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>This template contains two macros, the <code>&lt;!-- {TABLE_OF_CONTENTS} --&gt;</code> macro which provides a simple bulleted list of all the page links for your static site, and <code>&lt;!-- {CONTENT} --&gt;</code>, which is where the output of the Markdown and Djot converters goes.</p>
 
     </body>
 </html>
