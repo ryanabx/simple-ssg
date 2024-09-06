@@ -328,24 +328,40 @@ fn generate_table_of_contents(
     web_prefix: Option<&str>,
 ) -> String {
     let mut table_of_contents_html = "<ul>".to_string();
+    log::debug!("<ul>");
     let mut prev_depth = 0;
+    let mut prev_file_depth = 0;
+    let mut prev_folders = Vec::new();
     for result in results {
         match result {
             FirstPassResult::Dir {
                 depth,
                 relative_path,
             } => {
+                log::trace!("Dir: {}", &relative_path.to_string_lossy());
                 let mut depth_diff = *depth as i32 - prev_depth as i32;
                 while depth_diff < 0 {
-                    table_of_contents_html.push_str("</ul>");
+                    if prev_folders.pop().is_none() {
+                        let format_string = format!("</ul>");
+                        log::debug!("{} (Dir, depth_diff={})", &format_string, depth_diff);
+                        table_of_contents_html.push_str(&format_string);
+                    }
                     depth_diff += 1;
                 }
                 prev_depth = *depth;
                 if *depth > 0 {
-                    table_of_contents_html.push_str(&format!(
-                        "<li><b><u>{}:</u></b></li><ul>",
+                    log::trace!(
+                        "Adding {} to the folders stack (at depth {})",
                         &relative_path.to_string_lossy(),
-                    ));
+                        *depth
+                    );
+                    prev_folders.push(
+                        relative_path
+                            .file_name()
+                            .unwrap()
+                            .to_string_lossy()
+                            .to_string(),
+                    );
                 }
             }
             FirstPassResult::HtmlOutput {
@@ -353,17 +369,42 @@ fn generate_table_of_contents(
                 depth,
                 ..
             } => {
+                log::trace!("File: {}", &relative_path.to_string_lossy());
                 let mut depth_diff = *depth as i32 - prev_depth as i32;
                 while depth_diff < 0 {
-                    table_of_contents_html.push_str("</ul>");
+                    if prev_folders.pop().is_none() {
+                        let format_string = format!("</ul>");
+                        log::debug!("{}  (File, depth_diff={})", &format_string, depth_diff);
+                        table_of_contents_html.push_str(&format_string);
+                    }
                     depth_diff += 1;
                 }
+                let mut pos_depth_diff = prev_folders.len();
+                while pos_depth_diff > 0 {
+                    let folder_name = prev_folders.remove(0);
+                    let format_string = format!("<li><b><u>{}:</u></b></li>", &folder_name,);
+                    log::debug!(
+                        "{} (folder, depth={})",
+                        &format_string,
+                        (*depth - pos_depth_diff)
+                    );
+                    table_of_contents_html.push_str(&format_string);
+                    let format_string = format!("<ul>");
+                    log::debug!("{}, prev_folders-={}", &format_string, &folder_name);
+                    table_of_contents_html.push_str(&format_string);
+                    pos_depth_diff -= 1;
+                }
                 prev_depth = *depth;
+                prev_file_depth = *depth;
                 if relative_path == my_result {
-                    table_of_contents_html
-                        .push_str(&format!("<li><b>{}</b></li>", &relative_path.to_string_lossy()))
+                    let format_string = format!(
+                        "<li><b>{}</b></li>",
+                        &relative_path.file_stem().unwrap().to_string_lossy()
+                    );
+                    log::debug!("{} (file, depth={})", &format_string, *depth);
+                    table_of_contents_html.push_str(&format_string);
                 } else {
-                    table_of_contents_html.push_str(&format!(
+                    let format_string = format!(
                         "<li><a href=\"{}{}{}\">{}</a></li>",
                         if my_depth > 1 {
                             "../".repeat(my_depth - 1)
@@ -372,19 +413,24 @@ fn generate_table_of_contents(
                         },
                         &web_prefix.unwrap_or(""), // "./" if "" doesn't work
                         &relative_path.to_string_lossy(),
-                        &relative_path.to_string_lossy()
-                    ))
+                        &relative_path.file_stem().unwrap().to_string_lossy()
+                    );
+                    log::debug!("{} (file, depth={})", &format_string, *depth);
+                    table_of_contents_html.push_str(&format_string);
                 }
             }
         }
     }
-
-    let mut depth_diff = 0 - prev_depth as i32;
+    prev_depth -= prev_folders.len();
+    log::trace!("prev_depth - {} = {}", prev_folders.len(), prev_depth);
+    log::trace!("prev_file_depth = {}", prev_file_depth);
+    let mut depth_diff = 0 - prev_file_depth as i32;
     while depth_diff < 0 {
-        table_of_contents_html.push_str("</ul>");
+        let format_string = format!("</ul>");
+        log::debug!("{} (end, depth_diff={})", &format_string, depth_diff);
+        table_of_contents_html.push_str(&format_string);
         depth_diff += 1;
     }
     // log::debug!("Table of contents: {}", &table_of_contents_html);
-
     table_of_contents_html
 }
