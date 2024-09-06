@@ -24,3 +24,7 @@ An example template could be this:
 ```
 
 This template contains two macros, the `<!-- {TABLE_OF_CONTENTS} -->` macro which provides a simple bulleted list of all the page links for your static site, and `<!-- {CONTENT} -->`, which is where the output of the Markdown and Djot converters goes.
+
+## Built-in Templates
+
+There is currently one built-in template: `github-markdown`. Use the `-t` option to specify this template. You may also use `-t force-none` to force a blank page without a template!

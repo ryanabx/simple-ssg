@@ -5,12 +5,14 @@ use std::{
     env,
     path::{Path, PathBuf},
 };
+use templates::BuiltInTemplate;
 use utils::warn_or_error;
 use walkdir::WalkDir;
 
 use clap::Parser;
 
 mod errors;
+mod templates;
 #[cfg(test)]
 mod tests;
 mod utils;
@@ -33,6 +35,11 @@ struct ConsoleArgs {
     /// Specify the website prefix (defaults to local paths i.e. `./`)
     #[arg(long)]
     web_prefix: Option<String>,
+    /// Specify a built in template to use (will override a template.html
+    /// in any directory!). defaults to whatever templates are found in template.html in the
+    /// directories.
+    #[arg(short, long)]
+    template: Option<BuiltInTemplate>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -63,6 +70,7 @@ fn run_program(args: ConsoleArgs) -> anyhow::Result<()> {
         &output_path,
         args.no_warn,
         args.web_prefix.as_deref(),
+        args.template,
     )?;
     Ok(())
 }
@@ -85,6 +93,7 @@ fn generate_site(
     output_path: &Path,
     no_warn: bool,
     web_prefix: Option<&str>,
+    template: Option<BuiltInTemplate>,
 ) -> anyhow::Result<()> {
     let _ = std::fs::create_dir_all(output_path);
     log::trace!(
@@ -127,7 +136,10 @@ fn generate_site(
                 let _ = std::fs::create_dir_all(new_path.parent().unwrap());
                 match direntry.path().extension().map(|x| x.to_str().unwrap()) {
                     Some("dj") | Some("djot") | Some("md") => {
-                        let template = utils::get_template_if_exists(direntry.path(), target_path)?;
+                        let html_template = template.clone().map_or(
+                            utils::get_template_if_exists(direntry.path(), target_path)?,
+                            |template| Some(template.get_template()),
+                        );
                         let result_path = new_path.with_extension("html");
                         log::debug!(
                             "Generating .html from {:?} and moving to {:?}",
@@ -150,7 +162,8 @@ fn generate_site(
                             )?,
                             _ => unreachable!(),
                         };
-                        let html_formatted = utils::wrap_html_content(&html, template.as_deref());
+                        let html_formatted =
+                            utils::wrap_html_content(&html, html_template.as_deref());
                         first_pass_results.push(FirstPassResult::HtmlOutput {
                             depth: direntry.depth(),
                             html: html_formatted,
