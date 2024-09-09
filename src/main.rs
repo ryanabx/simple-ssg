@@ -24,10 +24,10 @@ struct ConsoleArgs {
     /// Path to the directory to use to generate the site (not required if -f is specified)
     directory: Option<PathBuf>,
     /// Process a single file instead of a directory
-    #[arg(short, conflicts_with = "clean")]
+    #[arg(short, conflicts_with = "clean", conflicts_with = "output_path")]
     file: Option<PathBuf>,
     /// Optional output path override. Defaults to ./output for directories
-    #[arg(short)]
+    #[arg(short, conflicts_with = "file")]
     output_path: Option<PathBuf>,
     /// Clean the output directory before generating the site. Useful for multiple runs
     #[arg(long, conflicts_with = "file")]
@@ -72,7 +72,7 @@ fn run_program(args: ConsoleArgs) -> anyhow::Result<()> {
         if path.is_dir() {
             return Err(anyhow!("Path {} is a directory. Specify <DIRECTORY> without the -f positional argument if this was intended.", path.display()));
         }
-        (path, args.output_path.unwrap_or(env::current_dir()?))
+        (path.clone(), path.parent().unwrap().to_path_buf())
     } else {
         return Err(anyhow!(
             "Must specify either a directory <DIRECTORY> or a path with -f <PATH>"
