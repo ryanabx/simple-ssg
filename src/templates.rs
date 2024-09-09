@@ -1265,6 +1265,7 @@ impl BuiltInTemplate {
         }
 
         .content-border {
+            display: flex;
             flex: 1;
             outline: var(--fgColor-muted);
             outline-width: 5px;
@@ -1273,6 +1274,7 @@ impl BuiltInTemplate {
 
         .content-body {
             padding: 1%;
+            flex: 1;
         }
 
         .table-of-contents {
