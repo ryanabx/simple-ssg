@@ -1300,21 +1300,22 @@ cargo build --release
 </section>
 <section id="Usage">
 <h2>Usage</h2>
-<pre><code class="language-shell">simple-ssg [OPTIONS] &lt;TARGET_PATH&gt;
-</code></pre>
-<section id="Options">
-<h3>Options</h3>
-<pre><code>Options:
-  -f                             Process a single file instead of a directory
+<pre><code class="language-shell">Plain and simple static site generator for Djot and Markdown light markup languages
+
+Usage: simple-ssg [OPTIONS] [DIRECTORY]
+
+Arguments:
+  [DIRECTORY]  Path to the directory to use to generate the site (not required if -f is specified)
+
+Options:
+  -f &lt;FILE&gt;                      Process a single file instead of a directory
   -o &lt;OUTPUT_PATH&gt;               Optional output path override. Defaults to ./output for directories
       --clean                    Clean the output directory before generating the site. Useful for multiple runs
-      --no-warn                  Disallow any warnings
       --web-prefix &lt;WEB_PREFIX&gt;  Specify the website prefix (defaults to local paths i.e. `./`)
   -t, --template &lt;TEMPLATE&gt;      Specify a built in template to use (will override a template.html in any directory!). defaults to whatever templates are found in template.html in the directories [possible values: github-markdown, force-none]
   -h, --help                     Print help
   -V, --version                  Print version
 </code></pre>
-</section>
 </section>
 <section id="Debugging">
 <h2>Debugging</h2>
