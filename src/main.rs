@@ -63,12 +63,16 @@ fn run_program(args: ConsoleArgs) -> anyhow::Result<()> {
                 dir.display()
             ));
         }
-        (dir, env::current_dir()?.join("output"))
+        (
+            dir,
+            args.output_path
+                .unwrap_or(env::current_dir()?.join("output")),
+        )
     } else if let Some(path) = args.file {
         if path.is_dir() {
             return Err(anyhow!("Path {} is a directory. Specify <DIRECTORY> without the -f positional argument if this was intended.", path.display()));
         }
-        (path, env::current_dir()?)
+        (path, args.output_path.unwrap_or(env::current_dir()?))
     } else {
         return Err(anyhow!(
             "Must specify either a directory <DIRECTORY> or a path with -f <PATH>"
