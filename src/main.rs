@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use errors::SsgError;
 use jotdown::{Container, Event};
-use pulldown_cmark::CowStr;
+use pulldown_cmark::{CowStr, Options};
 use std::{
     env,
     path::{Path, PathBuf},
@@ -265,7 +265,9 @@ fn process_markdown(
     file_parent_dir: &Path,
     web_prefix: Option<&str>,
 ) -> anyhow::Result<String> {
-    let events = pulldown_cmark::Parser::new(markdown_input)
+    let mut options = Options::empty();
+    options.insert(Options::ENABLE_GFM);
+    let events = pulldown_cmark::Parser::new_ext(markdown_input, options)
         .map(|event| -> anyhow::Result<pulldown_cmark::Event> {
             match event {
                 pulldown_cmark::Event::Start(pulldown_cmark::Tag::Link {
