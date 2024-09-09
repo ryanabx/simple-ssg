@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use errors::SsgError;
 use jotdown::{Container, Event};
 use pulldown_cmark::CowStr;
@@ -23,11 +24,14 @@ mod utils;
 struct ConsoleArgs {
     /// Path to the directory to use to generate the site
     target_path: PathBuf,
-    /// Optional output path override. Defaults to ./output
+    /// Process a single file instead of a directory
+    #[arg(short, conflicts_with = "clean")]
+    file: bool,
+    /// Optional output path override. Defaults to ./output for directories
     #[arg(short)]
     output_path: Option<PathBuf>,
     /// Clean the output directory before generating the site. Useful for multiple runs
-    #[arg(long)]
+    #[arg(long, conflicts_with = "file")]
     clean: bool,
     /// Disallow any warnings
     #[arg(long)]
@@ -50,11 +54,19 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn run_program(args: ConsoleArgs) -> anyhow::Result<()> {
-    let output_path = args
-        .output_path
-        .unwrap_or(env::current_dir()?.join("output"));
+    let output_path = args.output_path.unwrap_or(if args.file {
+        env::current_dir()?
+    } else {
+        env::current_dir()?.join("output")
+    });
+    if args.target_path.is_file() && !args.file {
+        return Err(anyhow!(
+            "Target path {} is a file! If you meant to specify a file, please specify the -f flag.",
+            args.target_path.display()
+        ));
+    }
     // Clean the output directory if clean is specified
-    if args.clean {
+    if args.clean && args.target_path.is_dir() {
         log::debug!(
             "Clean argument specified, cleaning output path {:?}...",
             &output_path
@@ -100,86 +112,49 @@ fn generate_site(
         "Created output directory {:?} if it didn't exist...",
         output_path
     );
-    if !utils::check_has_index(target_path) {
-        warn_or_error(SsgError::IndexPageNotFound, no_warn)?;
-    }
+
     let mut first_pass_results = Vec::new();
 
     log::info!("1/3: Site generation and indexing...");
-    for entry in WalkDir::new(target_path) {
-        match entry {
-            Ok(direntry) => {
-                let relative = match direntry.path().strip_prefix(target_path) {
-                    Ok(relative) => relative.to_path_buf(),
-                    Err(_) => {
-                        warn_or_error(
-                            SsgError::PathNotRelative(direntry.path().to_path_buf()),
-                            no_warn,
-                        )?;
-                        continue;
-                    }
-                };
-                log::debug!("{:?} :: {}", &relative, direntry.depth());
-                if direntry.path().is_dir() {
-                    log::trace!("Path {:?} is a directory, continuing...", direntry.path());
-                    first_pass_results.push(FirstPassResult::Dir {
-                        depth: direntry.depth(),
-                        relative_path: relative,
-                    });
-                    continue;
-                } else if direntry.path().ends_with("template.html") {
-                    log::trace!("Path {:?} is a template, continuing...", direntry.path());
-                    continue;
+    if target_path.is_dir() && output_path.is_dir() {
+        if !utils::check_has_index(target_path) {
+            warn_or_error(SsgError::IndexPageNotFound, no_warn)?;
+        }
+        for entry in WalkDir::new(target_path) {
+            match entry {
+                Ok(direntry) => process_path(
+                    direntry.path(),
+                    target_path,
+                    output_path,
+                    &template,
+                    web_prefix,
+                    no_warn,
+                    direntry.depth(),
+                    &mut first_pass_results,
+                )?,
+                Err(e) => {
+                    warn_or_error(SsgError::DirEntryError(e), no_warn)?;
                 }
-                log::trace!("Path: {:?}", direntry.path());
-                let new_path = output_path.join(&relative);
-                let _ = std::fs::create_dir_all(new_path.parent().unwrap());
-                match direntry.path().extension().map(|x| x.to_str().unwrap()) {
-                    Some("dj") | Some("djot") | Some("md") => {
-                        let html_template = template.clone().map_or(
-                            utils::get_template_if_exists(direntry.path(), target_path)?,
-                            |template| Some(template.get_template()),
-                        );
-                        let result_path = new_path.with_extension("html");
-                        log::debug!(
-                            "Generating .html from {:?} and moving to {:?}",
-                            direntry.path(),
-                            &result_path
-                        );
-                        let input_str = std::fs::read_to_string(direntry.path())?;
-                        let html = match direntry.path().extension().map(|x| x.to_str().unwrap()) {
-                            Some("md") => process_markdown(
-                                &input_str,
-                                direntry.path().parent().unwrap(),
-                                no_warn,
-                                web_prefix,
-                            )?,
-                            Some("dj") | Some("djot") => process_djot(
-                                &input_str,
-                                direntry.path().parent().unwrap(),
-                                no_warn,
-                                web_prefix,
-                            )?,
-                            _ => unreachable!(),
-                        };
-                        let html_formatted =
-                            utils::wrap_html_content(&html, html_template.as_deref());
-                        first_pass_results.push(FirstPassResult::HtmlOutput {
-                            depth: direntry.depth(),
-                            html: html_formatted,
-                            relative_path: relative.with_extension("html"),
-                        });
-                    }
-                    _ => {
-                        std::fs::copy(direntry.path(), &new_path)?;
-                    }
-                }
-            }
-            Err(e) => {
-                warn_or_error(SsgError::DirEntryError(e), no_warn)?;
             }
         }
+    } else if target_path.is_file() {
+        process_path(
+            target_path,
+            target_path.parent().unwrap(),
+            output_path,
+            &template,
+            web_prefix,
+            no_warn,
+            1,
+            &mut first_pass_results,
+        )?;
+    } else {
+        return Err(anyhow!(
+            "Target path {} is not a file or a directory.",
+            target_path.display()
+        ));
     }
+
     // Validation pass
     log::info!("2/3: Generating additional site content (if necessary) and saving...");
 
@@ -208,6 +183,74 @@ fn generate_site(
 
     log::info!("3/3: Done!");
 
+    Ok(())
+}
+
+fn process_path(
+    entity: &Path,
+    target_path: &Path,
+    output_path: &Path,
+    template: &Option<BuiltInTemplate>,
+    web_prefix: Option<&str>,
+    no_warn: bool,
+    depth: usize,
+    first_pass_results: &mut Vec<FirstPassResult>,
+) -> anyhow::Result<()> {
+    let relative = match entity.strip_prefix(target_path) {
+        Ok(relative) => relative.to_path_buf(),
+        Err(_) => {
+            warn_or_error(SsgError::PathNotRelative(entity.to_path_buf()), no_warn)?;
+            return Ok(());
+        }
+    };
+    log::debug!("{:?} :: {}", &relative, depth);
+    if entity.is_dir() {
+        log::trace!("Path {:?} is a directory, continuing...", entity);
+        first_pass_results.push(FirstPassResult::Dir {
+            depth,
+            relative_path: relative,
+        });
+        return Ok(());
+    } else if entity.ends_with("template.html") {
+        log::trace!("Path {:?} is a template, continuing...", entity);
+        return Ok(());
+    }
+    log::trace!("Path: {:?}", entity);
+    let new_path = output_path.join(&relative);
+    let _ = std::fs::create_dir_all(new_path.parent().unwrap());
+    match entity.extension().map(|x| x.to_str().unwrap()) {
+        Some("dj") | Some("djot") | Some("md") => {
+            let html_template = template.clone().map_or(
+                utils::get_template_if_exists(entity, target_path)?,
+                |template| Some(template.get_template()),
+            );
+            let result_path = new_path.with_extension("html");
+            log::debug!(
+                "Generating .html from {:?} and moving to {:?}",
+                entity,
+                &result_path
+            );
+            let input_str = std::fs::read_to_string(entity)?;
+            let html = match entity.extension().map(|x| x.to_str().unwrap()) {
+                Some("md") => {
+                    process_markdown(&input_str, entity.parent().unwrap(), no_warn, web_prefix)?
+                }
+                Some("dj") | Some("djot") => {
+                    process_djot(&input_str, entity.parent().unwrap(), no_warn, web_prefix)?
+                }
+                _ => unreachable!(),
+            };
+            let html_formatted = utils::wrap_html_content(&html, html_template.as_deref());
+            first_pass_results.push(FirstPassResult::HtmlOutput {
+                depth: depth,
+                html: html_formatted,
+                relative_path: relative.with_extension("html"),
+            });
+        }
+        _ => {
+            std::fs::copy(entity, &new_path)?;
+        }
+    }
     Ok(())
 }
 

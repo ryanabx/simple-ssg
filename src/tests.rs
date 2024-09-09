@@ -49,6 +49,7 @@ fn site_with_links() -> anyhow::Result<()> {
                     no_warn: true,
                     web_prefix: None,
                     template: Some(crate::templates::BuiltInTemplate::ForceNone),
+                    file: false,
                 };
                 log::trace!("Running program");
                 crate::run_program(args)?;
@@ -103,6 +104,7 @@ fn site_warn_without_index() -> anyhow::Result<()> {
                     no_warn: true,
                     web_prefix: None,
                     template: Some(crate::templates::BuiltInTemplate::ForceNone),
+                    file: false,
                 };
                 crate::run_program(args)?;
                 Ok(())
