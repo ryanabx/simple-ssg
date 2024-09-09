@@ -7,7 +7,6 @@ use std::{
     path::{Path, PathBuf},
 };
 use templates::BuiltInTemplate;
-use utils::warn_or_error;
 use walkdir::WalkDir;
 
 use clap::Parser;
@@ -22,20 +21,17 @@ mod utils;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct ConsoleArgs {
-    /// Path to the directory to use to generate the site
-    target_path: PathBuf,
+    /// Path to the directory to use to generate the site (not required if -f is specified)
+    directory: Option<PathBuf>,
     /// Process a single file instead of a directory
     #[arg(short, conflicts_with = "clean")]
-    file: bool,
+    file: Option<PathBuf>,
     /// Optional output path override. Defaults to ./output for directories
     #[arg(short)]
     output_path: Option<PathBuf>,
     /// Clean the output directory before generating the site. Useful for multiple runs
     #[arg(long, conflicts_with = "file")]
     clean: bool,
-    /// Disallow any warnings
-    #[arg(long)]
-    no_warn: bool,
     /// Specify the website prefix (defaults to local paths i.e. `./`)
     #[arg(long)]
     web_prefix: Option<String>,
@@ -54,19 +50,32 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn run_program(args: ConsoleArgs) -> anyhow::Result<()> {
-    let output_path = args.output_path.unwrap_or(if args.file {
-        env::current_dir()?
-    } else {
-        env::current_dir()?.join("output")
-    });
-    if args.target_path.is_file() && !args.file {
+    let (target_path, output_path) = if args.directory.is_some() && args.file.is_some() {
         return Err(anyhow!(
-            "Target path {} is a file! If you meant to specify a file, please specify the -f flag.",
-            args.target_path.display()
+            "Cannot specify both a directory and a path! (Specified {} and -f {})",
+            args.directory.unwrap().display(),
+            args.file.unwrap().display()
         ));
-    }
+    } else if let Some(dir) = args.directory {
+        if dir.is_file() {
+            return Err(anyhow!(
+                "Path {} is a file. Specify -f <FILE> if this was intended.",
+                dir.display()
+            ));
+        }
+        (dir, env::current_dir()?.join("output"))
+    } else if let Some(path) = args.file {
+        if path.is_dir() {
+            return Err(anyhow!("Path {} is a directory. Specify <DIRECTORY> without the -f positional argument if this was intended.", path.display()));
+        }
+        (path, env::current_dir()?)
+    } else {
+        return Err(anyhow!(
+            "Must specify either a directory <DIRECTORY> or a path with -f <PATH>"
+        ));
+    };
     // Clean the output directory if clean is specified
-    if args.clean && args.target_path.is_dir() {
+    if args.clean {
         log::debug!(
             "Clean argument specified, cleaning output path {:?}...",
             &output_path
@@ -78,9 +87,8 @@ fn run_program(args: ConsoleArgs) -> anyhow::Result<()> {
         }
     }
     generate_site(
-        &args.target_path,
+        &target_path,
         &output_path,
-        args.no_warn,
         args.web_prefix.as_deref(),
         args.template,
     )?;
@@ -103,7 +111,6 @@ pub enum FirstPassResult {
 fn generate_site(
     target_path: &Path,
     output_path: &Path,
-    no_warn: bool,
     web_prefix: Option<&str>,
     template: Option<BuiltInTemplate>,
 ) -> anyhow::Result<()> {
@@ -118,7 +125,7 @@ fn generate_site(
     log::info!("1/3: Site generation and indexing...");
     if target_path.is_dir() && output_path.is_dir() {
         if !utils::check_has_index(target_path) {
-            warn_or_error(SsgError::IndexPageNotFound, no_warn)?;
+            log::warn!("{}", SsgError::IndexPageNotFound);
         }
         for entry in WalkDir::new(target_path) {
             match entry {
@@ -128,12 +135,11 @@ fn generate_site(
                     output_path,
                     &template,
                     web_prefix,
-                    no_warn,
                     direntry.depth(),
                     &mut first_pass_results,
                 )?,
                 Err(e) => {
-                    warn_or_error(SsgError::DirEntryError(e), no_warn)?;
+                    log::warn!("{}", SsgError::DirEntryError(e));
                 }
             }
         }
@@ -144,7 +150,6 @@ fn generate_site(
             output_path,
             &template,
             web_prefix,
-            no_warn,
             1,
             &mut first_pass_results,
         )?;
@@ -192,14 +197,13 @@ fn process_path(
     output_path: &Path,
     template: &Option<BuiltInTemplate>,
     web_prefix: Option<&str>,
-    no_warn: bool,
     depth: usize,
     first_pass_results: &mut Vec<FirstPassResult>,
 ) -> anyhow::Result<()> {
     let relative = match entity.strip_prefix(target_path) {
         Ok(relative) => relative.to_path_buf(),
         Err(_) => {
-            warn_or_error(SsgError::PathNotRelative(entity.to_path_buf()), no_warn)?;
+            log::warn!("{}", SsgError::PathNotRelative(entity.to_path_buf()));
             return Ok(());
         }
     };
@@ -232,11 +236,9 @@ fn process_path(
             );
             let input_str = std::fs::read_to_string(entity)?;
             let html = match entity.extension().map(|x| x.to_str().unwrap()) {
-                Some("md") => {
-                    process_markdown(&input_str, entity.parent().unwrap(), no_warn, web_prefix)?
-                }
+                Some("md") => process_markdown(&input_str, entity.parent().unwrap(), web_prefix)?,
                 Some("dj") | Some("djot") => {
-                    process_djot(&input_str, entity.parent().unwrap(), no_warn, web_prefix)?
+                    process_djot(&input_str, entity.parent().unwrap(), web_prefix)?
                 }
                 _ => unreachable!(),
             };
@@ -257,7 +259,6 @@ fn process_path(
 fn process_markdown(
     markdown_input: &str,
     file_parent_dir: &Path,
-    no_warn: bool,
     web_prefix: Option<&str>,
 ) -> anyhow::Result<String> {
     let events = pulldown_cmark::Parser::new(markdown_input)
@@ -277,7 +278,7 @@ fn process_markdown(
                     {
                         let new_path = Path::new(&inner).with_extension("html");
                         if !referenced_path.exists() {
-                            warn_or_error(SsgError::LinkError(referenced_path), no_warn)?;
+                            log::warn!("{}", SsgError::LinkError(referenced_path))
                         }
                         let dest_url = CowStr::Boxed(
                             format!("{}{}", web_prefix.unwrap_or(""), new_path.to_string_lossy())
@@ -311,7 +312,6 @@ fn process_markdown(
 fn process_djot(
     djot_input: &str,
     file_parent_dir: &Path,
-    no_warn: bool,
     web_prefix: Option<&str>,
 ) -> anyhow::Result<String> {
     let events = jotdown::Parser::new(djot_input)
@@ -338,7 +338,7 @@ fn process_djot(
                                 attributes,
                             ))
                         } else {
-                            warn_or_error(SsgError::LinkError(referenced_path), no_warn)?;
+                            log::warn!("{}", SsgError::LinkError(referenced_path));
                             Ok(Event::Start(Container::Link(text, link_type), attributes))
                         }
                     } else {

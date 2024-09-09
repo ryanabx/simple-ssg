@@ -43,13 +43,12 @@ fn site_with_links() -> anyhow::Result<()> {
                 djot_file_3.flush()?;
                 log::trace!("Djot files written");
                 let args = ConsoleArgs {
-                    target_path: temp_dir.join("target"),
+                    directory: Some(temp_dir.join("target")),
+                    file: None,
                     output_path: Some(temp_dir.join("output")),
                     clean: false,
-                    no_warn: true,
                     web_prefix: None,
                     template: Some(crate::templates::BuiltInTemplate::ForceNone),
-                    file: false,
                 };
                 log::trace!("Running program");
                 crate::run_program(args)?;
@@ -98,13 +97,12 @@ fn site_warn_without_index() -> anyhow::Result<()> {
                 djot_file_2.flush()?;
 
                 let args = ConsoleArgs {
-                    target_path: temp_dir.join("target"),
+                    directory: Some(temp_dir.join("target")),
                     output_path: Some(temp_dir.join("output")),
                     clean: false,
-                    no_warn: true,
                     web_prefix: None,
                     template: Some(crate::templates::BuiltInTemplate::ForceNone),
-                    file: false,
+                    file: None,
                 };
                 crate::run_program(args)?;
                 Ok(())

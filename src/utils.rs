@@ -9,15 +9,6 @@ pub fn check_has_index(target_path: &Path) -> bool {
         || target_path.join("index.md").exists()
 }
 
-pub fn warn_or_error(error: crate::errors::SsgError, no_warn: bool) -> anyhow::Result<()> {
-    if no_warn {
-        Err(error.into())
-    } else {
-        log::warn!("{}", error);
-        Ok(())
-    }
-}
-
 pub fn get_template_if_exists(
     djot_document_path: &Path,
     root_path: &Path,

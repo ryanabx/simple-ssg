@@ -19,17 +19,17 @@ cargo build --release
 ## Usage
 
 ```shell
-simple-ssg [OPTIONS] <TARGET_PATH>
-```
+Plain and simple static site generator for Djot and Markdown light markup languages
 
-### Options
+Usage: simple-ssg [OPTIONS] [DIRECTORY]
 
-```
+Arguments:
+  [DIRECTORY]  Path to the directory to use to generate the site (not required if -f is specified)
+
 Options:
-  -f                             Process a single file instead of a directory
+  -f <FILE>                      Process a single file instead of a directory
   -o <OUTPUT_PATH>               Optional output path override. Defaults to ./output for directories
       --clean                    Clean the output directory before generating the site. Useful for multiple runs
-      --no-warn                  Disallow any warnings
       --web-prefix <WEB_PREFIX>  Specify the website prefix (defaults to local paths i.e. `./`)
   -t, --template <TEMPLATE>      Specify a built in template to use (will override a template.html in any directory!). defaults to whatever templates are found in template.html in the directories [possible values: github-markdown, force-none]
   -h, --help                     Print help
