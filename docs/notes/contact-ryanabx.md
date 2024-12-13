@@ -1,4 +1,4 @@
-[Back to home page](../index.dj)
+[Back to home page](../index.md)
 
 # Contact Ryanabx
 

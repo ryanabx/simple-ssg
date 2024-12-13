@@ -4,6 +4,7 @@ use jotdown::{Container, Event};
 use pulldown_cmark::{CowStr, Options};
 use std::{
     env,
+    fs::{self, read_dir},
     path::{Path, PathBuf},
 };
 use templates::BuiltInTemplate;
@@ -16,6 +17,8 @@ mod templates;
 #[cfg(test)]
 mod tests;
 mod utils;
+
+mod markdown;
 
 /// Djot static site generator
 #[derive(Parser, Debug)]
@@ -40,13 +43,37 @@ struct ConsoleArgs {
     /// directories.
     #[arg(short, long)]
     template: Option<BuiltInTemplate>,
+    /// Try the legacy method of generating a static site
+    #[arg(long)]
+    legacy: bool,
 }
 
 fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
     log::trace!("Begin simple-ssg::main()");
     let args = ConsoleArgs::parse();
-    run_program(args)
+    if args.legacy {
+        run_program(args)
+    } else {
+        run_program_2(args)
+    }
+}
+
+fn run_program_2(args: ConsoleArgs) -> anyhow::Result<()> {
+    if args.directory.is_none()
+        || args.file.is_some()
+        || args.template.is_some()
+        || args.output_path.is_none()
+    {
+        log::error!("Args incorrect");
+        anyhow::bail!("Args incorrect");
+    }
+    generate_site_2(
+        &args.directory.unwrap(),
+        &args.output_path.unwrap(),
+        args.web_prefix.as_deref(),
+    )?;
+    Ok(())
 }
 
 fn run_program(args: ConsoleArgs) -> anyhow::Result<()> {
@@ -110,6 +137,85 @@ pub enum FirstPassResult {
         html: String,
         relative_path: PathBuf,
     },
+}
+
+fn generate_site_2(
+    root_dir: &Path,
+    output_dir: &Path,
+    web_prefix: Option<&str>,
+) -> anyhow::Result<()> {
+    let root_dir = root_dir.canonicalize()?;
+    let _ = fs::create_dir_all(&output_dir);
+    let output_dir = output_dir.canonicalize()?;
+
+    for x in WalkDir::new(&root_dir) {
+        let x = x?;
+        let x_path = x.path();
+        log::info!("{:?}", x_path);
+        if x_path.is_dir() {
+            if !x_path.join("index.md").exists() {
+                let mut directory_index = String::new();
+                if x.depth() > 0 {
+                    // let parent_dir = x_path.parent().unwrap();
+
+                    directory_index.push_str("[../](..)\n");
+                }
+                directory_index.push_str(&create_directory_index(x_path)?);
+                log::info!("{}", &directory_index);
+                let html = markdown::md_to_html(&directory_index, x_path, web_prefix)?;
+                let result_path =
+                    output_dir.join(x_path.join("index.html").strip_prefix(&root_dir)?);
+                log::info!("Result path: {:?}", &result_path);
+                let _ = std::fs::create_dir_all(result_path.parent().unwrap());
+                std::fs::write(&result_path, html.as_bytes())?;
+            }
+        } else if x_path.is_file() {
+            let result_path =
+                output_dir.join(x_path.with_extension("html").strip_prefix(&root_dir)?);
+            if x_path.extension().is_some_and(|ext| ext == "md") {
+                let md = fs::read_to_string(x_path)?;
+                let html = markdown::md_to_html(&md, x_path.parent().unwrap(), web_prefix)?;
+                std::fs::write(&result_path, html.as_bytes())?;
+            } else {
+                std::fs::copy(x_path, &result_path)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn get_relative_url(root_path: &Path, target_path: &Path) -> String {
+    log::info!("{:?}.strip({:?})", target_path, root_path);
+    target_path
+        .strip_prefix(root_path)
+        .unwrap()
+        .to_string_lossy()
+        .to_string()
+}
+
+fn create_directory_index(folder: &Path) -> anyhow::Result<String> {
+    let mut result = String::new();
+
+    for x in read_dir(folder)? {
+        let x_path = &x?.path();
+        result.push_str(&directory_string(
+            folder,
+            &x_path,
+            &x_path.file_name().unwrap().to_string_lossy(),
+        ));
+        result.push_str("\n");
+    }
+
+    Ok(result)
+}
+
+fn directory_string(root_path: &Path, target_path: &Path, name: &str) -> String {
+    format!(
+        "[{}](./{})\n",
+        name,
+        get_relative_url(root_path, target_path)
+    )
 }
 
 fn generate_site(

@@ -1,6 +1,6 @@
 # Djot command reference
 
-[Back to main page](./index.dj)
+[Back to main page](./index.md)
 
 ## Installation
 

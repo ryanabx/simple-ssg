@@ -49,6 +49,7 @@ fn site_with_links() -> anyhow::Result<()> {
                     clean: false,
                     web_prefix: None,
                     template: Some(crate::templates::BuiltInTemplate::ForceNone),
+                    legacy: true
                 };
                 log::trace!("Running program");
                 crate::run_program(args)?;
@@ -103,6 +104,7 @@ fn site_warn_without_index() -> anyhow::Result<()> {
                     web_prefix: None,
                     template: Some(crate::templates::BuiltInTemplate::ForceNone),
                     file: None,
+                    legacy: true,
                 };
                 crate::run_program(args)?;
                 Ok(())
