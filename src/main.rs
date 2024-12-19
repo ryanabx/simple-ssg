@@ -168,7 +168,10 @@ fn generate_site_2(
                     output_dir.join(x_path.join("index.html").strip_prefix(&root_dir)?);
                 log::info!("Result path: {:?}", &result_path);
                 let _ = std::fs::create_dir_all(result_path.parent().unwrap());
-                std::fs::write(&result_path, html.as_bytes())?;
+                if let Err(e) = std::fs::write(&result_path, html.as_bytes()) {
+                    log::error!("Could not write file to path {:?}: {}", &result_path, e);
+                    anyhow::bail!(e);
+                }
             }
         } else if x_path.is_file() {
             let result_path =
@@ -176,9 +179,15 @@ fn generate_site_2(
             if x_path.extension().is_some_and(|ext| ext == "md") {
                 let md = fs::read_to_string(x_path)?;
                 let html = markdown::md_to_html(&md, x_path.parent().unwrap(), web_prefix)?;
-                std::fs::write(&result_path, html.as_bytes())?;
+                if let Err(e) = std::fs::write(&result_path, html.as_bytes()) {
+                    log::error!("Could not write file to path {:?}: {}", &result_path, e);
+                    anyhow::bail!(e);
+                }
             } else {
-                std::fs::copy(x_path, &result_path)?;
+                if let Err(e) = std::fs::copy(x_path, &result_path) {
+                    log::error!("Could not copy file from {:?} to {:?}: {}", x_path, &result_path, e);
+                    anyhow::bail!(e);
+                }
             }
         }
     }
