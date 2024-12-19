@@ -60,9 +60,9 @@ fn generate(root_dir: &Path, output_dir: &Path, web_prefix: Option<&str>) -> any
                 }
             }
         } else if x_path.is_file() {
-            let result_path =
-                output_dir.join(x_path.with_extension("html").strip_prefix(&root_dir)?);
             if x_path.extension().is_some_and(|ext| ext == "md") {
+                let result_path =
+                    output_dir.join(x_path.with_extension("html").strip_prefix(&root_dir)?);
                 let md = fs::read_to_string(x_path)?;
                 let html = md_to_html(&md, x_path.parent().unwrap(), web_prefix)?;
                 let _ = std::fs::create_dir_all(result_path.parent().unwrap());
@@ -71,6 +71,7 @@ fn generate(root_dir: &Path, output_dir: &Path, web_prefix: Option<&str>) -> any
                     anyhow::bail!(e);
                 }
             } else {
+                let result_path = output_dir.join(x_path.strip_prefix(&root_dir)?);
                 let _ = std::fs::create_dir_all(result_path.parent().unwrap());
                 if let Err(e) = std::fs::copy(x_path, &result_path) {
                     log::error!(
