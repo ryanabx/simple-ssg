@@ -179,11 +179,13 @@ fn generate_site_2(
             if x_path.extension().is_some_and(|ext| ext == "md") {
                 let md = fs::read_to_string(x_path)?;
                 let html = markdown::md_to_html(&md, x_path.parent().unwrap(), web_prefix)?;
+                let _ = std::fs::create_dir_all(result_path.parent().unwrap());
                 if let Err(e) = std::fs::write(&result_path, html.as_bytes()) {
                     log::error!("Could not write file to path {:?}: {}", &result_path, e);
                     anyhow::bail!(e);
                 }
             } else {
+                let _ = std::fs::create_dir_all(result_path.parent().unwrap());
                 if let Err(e) = std::fs::copy(x_path, &result_path) {
                     log::error!("Could not copy file from {:?} to {:?}: {}", x_path, &result_path, e);
                     anyhow::bail!(e);
