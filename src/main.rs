@@ -130,6 +130,7 @@ pub fn md_to_html(
     log::info!("Markdown to html: {:?}", file_parent_dir);
     let mut options = Options::empty();
     options.insert(Options::ENABLE_GFM);
+    options.insert(Options::ENABLE_STRIKETHROUGH);
     let events = pulldown_cmark::Parser::new_ext(markdown, options)
         .map(|event| -> anyhow::Result<pulldown_cmark::Event> {
             match event {
