@@ -1,11 +1,11 @@
-# SMPL Static Site Generator - Generate a website with the lowest effort!
+# Simple Static Site Generator - Generate a website with the lowest effort!
 
 ## Usage
 
 ```shell
-cargo install simple-ssg
+cargo install --git https://github.com/ryanabx/simple-ssg
 
-simple-ssg <TARGET_DIRECTORY> -o [OUTPUT_DIRECTORY]
+simple-ssg <TARGET_DIRECTORY> <OUTPUT_DIRECTORY>
 ```
 
 ## Support Goals
@@ -14,5 +14,4 @@ This static site generator aims to support:
 
 - [x] Plaintext HTML
 - [x] Linking to pages within static site
-- [x] Image resources
-- [x] Templates (must be named template.html)
+- [x] Miscellaneous resources in your site

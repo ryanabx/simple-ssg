@@ -5,18 +5,16 @@ repository = "https://github.com/ryanabx/simple-ssg"
 website = "https://ryanabx.github.io/simple-ssg"
 license = "MIT"
 readme = "README.md"
-version = "4.1.0"
+version = "5.0.0"
 edition = "2021"
-description = "Plain and simple static site generator for Djot and Markdown light markup languages"
+description = "Simplest static site generator for Markdown"
 
 [dependencies]
 anyhow = "1.0.86"
 clap = { version = "4.5.16", features = ["derive"] }
 env_logger = "0.11.5"
-jotdown = "0.5.0"
 log = "0.4.22"
 pulldown-cmark = "0.12.1"
-thiserror = "1.0.63"
 walkdir = "2.5.0"
 
 [dev-dependencies]

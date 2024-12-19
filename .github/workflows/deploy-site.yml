@@ -18,10 +18,10 @@ jobs:
       run: sudo apt-get install cargo
 
     - name: Install simple-ssg
-      run: cargo install simple-ssg
+      run: cargo install --git https://github.com/ryanabx/simple-ssg
 
     - name: Generate static site
-      run: ~/.cargo/bin/simple-ssg --clean ./docs -o ./output -t github-markdown
+      run: ~/.cargo/bin/simple-ssg ./docs ./output
 
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v4
