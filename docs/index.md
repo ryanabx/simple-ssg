@@ -2,7 +2,7 @@
 
 <https://github.com/ryanabx/simple-ssg>
 
-[Command Reference](./command_reference)
+[Command Reference](./command_reference.md)
 
 ## A simple static site generator for Djot/Markdown!
 

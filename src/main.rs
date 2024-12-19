@@ -158,7 +158,8 @@ fn generate_site_2(
                 if x.depth() > 0 {
                     // let parent_dir = x_path.parent().unwrap();
 
-                    directory_index.push_str("[../](..)\n");
+                    directory_index.push_str("[../](../index.html)\n");
+                    directory_index.push_str("\n");
                 }
                 directory_index.push_str(&create_directory_index(x_path)?);
                 log::info!("{}", &directory_index);
